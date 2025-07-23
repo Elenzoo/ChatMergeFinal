@@ -11,7 +11,7 @@ const { getLiveVideoId } = require("./ytChatReader");
 
 const app = express();
 
-// 🔧 Tu udostępniasz klienta Socket.IO dla frontendu (z Electron .exe)
+// 🔧 Udostępnianie klienta Socket.IO do frontendu (np. Electron)
 app.use("/socket.io", express.static(__dirname + "/node_modules/socket.io/client-dist"));
 
 const server = http.createServer(app);
@@ -48,9 +48,9 @@ twitchClient.on('message', (channel, tags, message, self) => {
 });
 
 // === YOUTUBE ===
-async function startYouTubeChat(channelUrl) {
+async function startYouTubeChat() {
   try {
-    const videoId = await getLiveVideoId(channelUrl);
+    const videoId = await getLiveVideoId();
     if (!videoId) {
       console.log("📭 Brak aktywnego streama na YouTube");
       return;
@@ -86,5 +86,4 @@ async function startYouTubeChat(channelUrl) {
   }
 }
 
-// Podaj videoId lub URL do kanału
-startYouTubeChat("https://www.youtube.com/@kajma");
+startYouTubeChat();
