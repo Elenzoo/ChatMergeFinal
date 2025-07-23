@@ -73,4 +73,5 @@ async function startYouTubeChat(channelUrl) {
   await chat.start();
 }
 
-startYouTubeChat("https://www.youtube.com/watch?v=OxA769Y-5E4&ab_channel=Kajma");
+startYouTubeChat("https://www.youtube.com/watch?v=OxA769Y-5E4");
+
