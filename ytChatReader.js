@@ -12,6 +12,9 @@ async function getLiveVideoId() {
     const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${CHANNEL_ID}&eventType=live&type=video&key=${YT_API_KEY}`;
 
     const { data } = await axios.get(url);
+    console.log("📦 YouTube API RESPONSE:");
+    console.log(JSON.stringify(data, null, 2));
+
     const video = data.items && data.items[0];
 
     if (!video) {
