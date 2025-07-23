@@ -10,6 +10,8 @@ const { LiveChat } = require("youtube-chat");
 const { getLiveVideoId } = require("./ytChatReader");
 
 const app = express();
+app.use("/socket.io", express.static(__dirname + "/node_modules/socket.io/client-dist"));
+
 const server = http.createServer(app);
 const io = new Server(server);
 
