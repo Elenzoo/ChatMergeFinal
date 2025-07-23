@@ -3,19 +3,23 @@
  */
 
 const axios = require("axios");
-const cheerio = require("cheerio");
 
-async function getLiveVideoId(channelUrl) {
+const YT_API_KEY = "AIzaSyCOR5QRFiHR-hZln9Zb2pHfOnyCANK0Yaw"; // 🔐 Twój klucz
+const CHANNEL_ID = "UC0OgEeq5GBS7qVbn9J1P4OQ"; // 🔔 ID kanału Kajmy
+
+async function getLiveVideoId() {
   try {
-    const { data: html } = await axios.get(channelUrl);
-    const $ = cheerio.load(html);
-    const initialData = $("script")
-      .map((_, el) => $(el).html())
-      .get()
-      .find((txt) => txt && txt.includes("videoId"));
+    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${CHANNEL_ID}&eventType=live&type=video&key=${YT_API_KEY}`;
 
-    const match = initialData.match(/"videoId":"(.*?)"/);
-    return match ? match[1] : null;
+    const { data } = await axios.get(url);
+    const video = data.items && data.items[0];
+
+    if (!video) {
+      console.log("📭 Brak aktywnego streama na YouTube");
+      return null;
+    }
+
+    return video.id.videoId;
   } catch (err) {
     console.error("❌ Błąd przy pobieraniu ID streama:", err.message);
     return null;
