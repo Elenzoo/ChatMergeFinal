@@ -9,9 +9,12 @@ const CHANNEL_ID = "UC4kNxGD9VWcYEMrYtdV7oFA"; // @alsotom
 function getExecutablePath() {
   const base = "/opt/render/.cache/puppeteer/chrome";
   const linuxDir = fs.readdirSync(base).find(name => name.startsWith("linux-"));
-  if (!linuxDir) throw new Error("❌ Nie znaleziono folderu linux-* w Puppeteer cache");
+  if (!linuxDir) throw new Error("❌ Nie znaleziono katalogu linux-* w Puppeteer cache");
 
-  return path.join(base, linuxDir, "chrome-linux64", "chrome");
+  const fullPath = path.join(base, linuxDir, "chrome-linux64", "chrome");
+  if (!fs.existsSync(fullPath)) throw new Error("❌ Nie znaleziono pliku 'chrome' w ścieżce: " + fullPath);
+
+  return fullPath;
 }
 
 async function tryGetLiveIdFromAPI(channelId) {
