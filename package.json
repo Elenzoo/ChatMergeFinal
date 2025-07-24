@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "postinstall": "npx puppeteer install"
+    "postinstall": "npx puppeteer install chromium"
   },
   "author": "ElEnzo",
   "license": "MIT",
