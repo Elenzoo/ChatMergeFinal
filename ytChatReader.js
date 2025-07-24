@@ -1,39 +1,26 @@
 const fs = require("fs");
 const axios = require("axios");
-const puppeteer = require("puppeteer-core");
+const puppeteer = require("puppeteer");
 const glob = require("glob");
-const { execSync } = require("child_process");
 
 const API_KEY = "AIzaSyCOR5QRFiHR-hZln9Zb2pHfOnyCANK0Yaw";
-const CHANNEL_ID = "UC4kNxGD9VWcYEMrYtdV7oFA"; // @alsotom
+const CHANNEL_ID = "UC4kNxGD9VWcYEMrYtdV7oFA"; // alsotom
 
 function findExecutablePath() {
   const paths = [
-    "/opt/render/.cache/puppeteer/chrome/linux-*/chrome", // Puppeteer Lite (Render)
+    "/opt/render/.cache/puppeteer/chrome/linux-*/chrome",
     "/usr/bin/google-chrome-stable",
     "/usr/bin/google-chrome",
     "/usr/bin/chromium",
     "/usr/bin/chromium-browser"
   ];
 
-  console.log("🔍 Szukam przeglądarki w systemie...");
-
   for (const path of paths) {
     const match = glob.sync(path)[0];
     if (match && fs.existsSync(match)) {
       console.log("✅ Wykryto przeglądarkę pod ścieżką:", match);
       return match;
-    } else {
-      console.log(`❌ Nie znaleziono pod: ${path}`);
     }
-  }
-
-  // Diagnostyczne logowanie zawartości katalogu Puppeteera:
-  try {
-    const output = execSync("ls -R /opt/render/.cache/puppeteer", { encoding: "utf8" });
-    console.log("📂 Zawartość /opt/render/.cache/puppeteer:\n" + output);
-  } catch (err) {
-    console.warn("⚠️ Nie udało się odczytać folderu Puppeteera:", err.message);
   }
 
   return null;
@@ -92,9 +79,9 @@ async function startYouTubeChat(videoId, io) {
     if (!exePath) throw new Error("❌ Nie znaleziono przeglądarki w systemie!");
 
     const browser = await puppeteer.launch({
-      headless: "new",
-      args: ["--no-sandbox"],
-      executablePath: exePath
+      headless: true,
+      executablePath: exePath,
+      args: ["--no-sandbox"]
     });
 
     const page = await browser.newPage();
@@ -112,7 +99,6 @@ async function startYouTubeChat(videoId, io) {
     await browser.close();
 
     if (!liveChatIdFromPage) throw new Error("Brak liveChatId nawet po Puppeteerze.");
-
     console.log("🤖 liveChatId z Puppeteera:", liveChatIdFromPage);
     startPollingChat(liveChatIdFromPage, io);
 
@@ -131,7 +117,7 @@ async function startPollingChat(liveChatId, io) {
       const res = await axios.get(url);
       const messages = res.data.items || [];
 
-      messages.forEach((msg) => {
+      messages.forEach(msg => {
         const author = msg.authorDetails.displayName;
         const text = msg.snippet.displayMessage;
         io.emit("chatMessage", {
