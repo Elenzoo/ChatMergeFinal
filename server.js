@@ -6,11 +6,11 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const tmi = require("tmi.js");
-const { getLiveVideoId, startYouTubeChat } = require("./ytChatReader"); // <-- używamy jednej funkcji
+const { getLiveVideoId, startYouTubeChat } = require("./ytChatReader"); // Użycie 1 funkcji
 
 const app = express();
 
-// 🔧 Udostępnianie Socket.IO klientowi (np. frontend w Electronie)
+// 🔧 Socket.IO klient dla frontu (np. Electron)
 app.use("/socket.io", express.static(__dirname + "/node_modules/socket.io/client-dist"));
 
 const server = http.createServer(app);
@@ -28,7 +28,7 @@ const twitchClient = new tmi.Client({
     reconnect: true,
     secure: true
   },
-  channels: ['kajma'] // <- wpisz swoją nazwę kanału jeśli zmieniasz
+  channels: ['kajma']
 });
 
 twitchClient.connect();
@@ -46,7 +46,7 @@ twitchClient.on('message', (channel, tags, message, self) => {
   io.emit('chatMessage', msg);
 });
 
-// === YOUTUBE CHAT (API + fallback Puppeteer) ===
+// === YOUTUBE CHAT ===
 async function startYouTubeChatWrapper() {
   try {
     console.log("🎯 Szukam aktywnego streama dla kanału @alsotom...");
@@ -58,12 +58,11 @@ async function startYouTubeChatWrapper() {
     }
 
     console.log("🔴 YouTube Live ID:", videoId);
-    startYouTubeChat(videoId, io); // --> automatyczne API lub Puppeteer
+    startYouTubeChat(videoId, io);
 
   } catch (err) {
     console.log("❌ Błąd przy pobieraniu ID streama:", err.message);
   }
 }
 
-// ✅ Start YouTube Chat
 startYouTubeChatWrapper();
