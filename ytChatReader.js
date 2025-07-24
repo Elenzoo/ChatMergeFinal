@@ -1,9 +1,17 @@
 const fs = require("fs");
+const path = require("path");
 const axios = require("axios");
 const puppeteer = require("puppeteer-core");
 
 const API_KEY = "AIzaSyCOR5QRFiHR-hZln9Zb2pHfOnyCANK0Yaw";
 const CHANNEL_ID = "UC4kNxGD9VWcYEMrYtdV7oFA"; // @alsotom
+
+function getExecutablePath() {
+  const base = "/opt/render/.cache/puppeteer/chrome/";
+  const dirs = fs.readdirSync(base);
+  if (dirs.length === 0) throw new Error("❌ Brak Chromium w cache Puppeteera!");
+  return path.join(base, dirs[0], "chrome");
+}
 
 async function tryGetLiveIdFromAPI(channelId) {
   try {
@@ -54,9 +62,12 @@ async function startYouTubeChat(videoId, io) {
       return startPollingChat(liveChatId, io);
     }
 
+    const executablePath = getExecutablePath();
+
     const browser = await puppeteer.launch({
       headless: "new",
-      args: ['--no-sandbox']
+      args: ['--no-sandbox'],
+      executablePath
     });
 
     const page = await browser.newPage();
