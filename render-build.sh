@@ -4,11 +4,9 @@ set -o errexit
 echo "📦 Instalacja zależności..."
 npm install
 
-echo "📁 Tworzę cache Puppeteera..."
+echo "⬇️ Instaluję Chromium (Lite)..."
 export PUPPETEER_CACHE_DIR="/opt/render/.cache/puppeteer"
 mkdir -p "$PUPPETEER_CACHE_DIR"
+npx puppeteer install chromium
 
-echo "⬇️ Pobieram Chromium..."
-npx puppeteer browsers install chrome
-
-echo "✅ Puppeteer + Chromium gotowe!"
+echo "✅ Puppeteer Core + Chromium gotowe!"
