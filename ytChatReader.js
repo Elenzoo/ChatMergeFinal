@@ -3,15 +3,15 @@
  */
 
 const axios = require("axios");
+const cheerio = require("cheerio");
 
 const YT_API_KEY = "AIzaSyCOR5QRFiHR-hZln9Zb2pHfOnyCANK0Yaw";
 const CHANNEL_ID = "UC0OgEeq5GBS7qVbn9J1P4OQ"; // Kajma
 
-// === Pobieranie ID aktywnego streama z YouTube Data API ===
 async function getLiveVideoId() {
-  try {
-    console.log("🌐 Próbuję pobrać aktywny stream z YouTube API...");
+  console.log("🌐 Próba pobrania ID przez YouTube API...");
 
+  try {
     const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${CHANNEL_ID}&eventType=live&type=video&key=${YT_API_KEY}`;
     const { data } = await axios.get(url);
 
@@ -20,64 +20,45 @@ async function getLiveVideoId() {
     const item = data.items?.[0];
     const videoId = item?.id?.videoId;
 
-    if (!videoId) {
-      console.log("📭 Brak aktywnego streama w wyszukiwarce API");
-      return null;
+    if (videoId) {
+      console.log("✅ YouTube API zwróciło ID:", videoId);
+      return videoId;
     }
 
-    console.log("🔍 Znaleziono videoId:", videoId);
-
-    // Walidujemy status live i czatu
-    const isUsable = await validateLiveStatus(videoId);
-
-    if (!isUsable) {
-      console.log("⛔️ Live nie spełnia warunków (brak czatu / niedostępny)");
-      return null;
-    }
-
-    console.log("✅ Live dostępny, zwracam videoId:", videoId);
-    return videoId;
+    console.log("⚠️ Brak aktywnego streama w API — fallback do scrapera...");
   } catch (err) {
-    console.error("❌ Błąd w getLiveVideoId:", err.message);
-    return null;
+    console.log("❌ Błąd w zapytaniu do YouTube API:", err.message);
   }
-}
 
-// === Sprawdzanie szczegółów transmisji (czy czat aktywny, czy nie dla dzieci) ===
-async function validateLiveStatus(videoId) {
+  // === SCRAPER (Fallback)
   try {
-    const infoUrl = `https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails,snippet,status,contentDetails&id=${videoId}&key=${YT_API_KEY}`;
-    const { data } = await axios.get(infoUrl);
+    const channelUrl = `https://www.youtube.com/@kajma/live`;
+    console.log("🔍 Próbuję wyciągnąć ID ze strony:", channelUrl);
 
-    const item = data.items?.[0];
-    if (!item) {
-      console.log("⚠️ API nie zwróciło danych o transmisji.");
-      return false;
+    const { data: html } = await axios.get(channelUrl);
+    const $ = cheerio.load(html);
+
+    const initialData = $("script")
+      .map((_, el) => $(el).html())
+      .get()
+      .find(txt => txt?.includes("videoId"));
+
+    const match = initialData?.match(/"videoId":"(.*?)"/);
+    const scrapedId = match?.[1];
+
+    if (scrapedId) {
+      console.log("✅ ID streama ze scrapera:", scrapedId);
+      console.log("🔴 YouTube Live ID:", scrapedId);
+      return scrapedId;
     }
 
-    const live = item.liveStreamingDetails;
-    const snippet = item.snippet;
-    const status = item.status;
-    const contentRating = item.contentDetails?.contentRating;
-
-    const hasChat = !!live?.activeLiveChatId;
-    const isLive = hasChat || snippet?.liveBroadcastContent === "live";
-    const isAgeRestricted = contentRating?.ytRating === "ytAgeRestricted";
-    const madeForKids = status?.madeForKids || item.contentDetails?.madeForKids;
-
-    // 🔍 DEBUG
-    console.log("🧠 Debug transmisji:");
-    console.log("📺 liveBroadcastContent:", snippet?.liveBroadcastContent);
-    console.log("💬 activeLiveChatId:", live?.activeLiveChatId);
-    console.log("🔞 ytRating:", contentRating?.ytRating);
-    console.log("👶 madeForKids:", madeForKids);
-    console.log("✅ FINAL isLive =", isLive);
-
-    return isLive && hasChat && !isAgeRestricted && !madeForKids;
+    console.log("❌ Scraper nie znalazł ID.");
   } catch (err) {
-    console.error("❌ Błąd walidacji statusu:", err.message);
-    return false;
+    console.log("❌ Błąd scrapera:", err.message);
   }
+
+  console.log("📭 Brak aktywnego streama na YouTube");
+  return null;
 }
 
 module.exports = { getLiveVideoId };
