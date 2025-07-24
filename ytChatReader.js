@@ -7,10 +7,11 @@ const API_KEY = "AIzaSyCOR5QRFiHR-hZln9Zb2pHfOnyCANK0Yaw";
 const CHANNEL_ID = "UC4kNxGD9VWcYEMrYtdV7oFA"; // @alsotom
 
 function getExecutablePath() {
-  const base = "/opt/render/.cache/puppeteer/chrome/";
-  const dirs = fs.readdirSync(base);
-  if (dirs.length === 0) throw new Error("❌ Brak Chromium w cache Puppeteera!");
-  return path.join(base, dirs[0], "chrome");
+  const base = "/opt/render/.cache/puppeteer/chrome";
+  const linuxDir = fs.readdirSync(base).find(name => name.startsWith("linux-"));
+  if (!linuxDir) throw new Error("❌ Nie znaleziono folderu linux-* w Puppeteer cache");
+
+  return path.join(base, linuxDir, "chrome-linux64", "chrome");
 }
 
 async function tryGetLiveIdFromAPI(channelId) {
