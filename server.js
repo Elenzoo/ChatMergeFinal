@@ -11,7 +11,7 @@ const { getLiveVideoId } = require("./ytChatReader");
 
 const app = express();
 
-// 🔧 Udostępnianie klienta Socket.IO do frontendu (np. Electron)
+// 🔧 Socket.IO klient dla frontu (np. Electron)
 app.use("/socket.io", express.static(__dirname + "/node_modules/socket.io/client-dist"));
 
 const server = http.createServer(app);
@@ -29,7 +29,7 @@ const twitchClient = new tmi.Client({
     reconnect: true,
     secure: true
   },
-  channels: ['kajma'] // <- tutaj wpisz nazwę kanału Twitch
+  channels: ['kajma'] // <-- zmień jeśli chcesz inny kanał
 });
 
 twitchClient.connect();
@@ -52,6 +52,7 @@ async function startYouTubeChat() {
   try {
     console.log("🎯 Szukam aktywnego streama dla kanału @alsotom...");
     const videoId = await getLiveVideoId();
+
     if (!videoId) {
       console.log("📭 Brak aktywnego streama na YouTube");
       return;
@@ -87,5 +88,4 @@ async function startYouTubeChat() {
   }
 }
 
-// Start czatu YouTube po starcie serwera
 startYouTubeChat();
