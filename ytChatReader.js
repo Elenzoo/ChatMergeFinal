@@ -2,6 +2,7 @@ const fs = require("fs");
 const axios = require("axios");
 const puppeteer = require("puppeteer-core");
 const glob = require("glob");
+const { execSync } = require("child_process");
 
 const API_KEY = "AIzaSyCOR5QRFiHR-hZln9Zb2pHfOnyCANK0Yaw";
 const CHANNEL_ID = "UC4kNxGD9VWcYEMrYtdV7oFA"; // @alsotom
@@ -15,12 +16,24 @@ function findExecutablePath() {
     "/usr/bin/chromium-browser"
   ];
 
+  console.log("🔍 Szukam przeglądarki w systemie...");
+
   for (const path of paths) {
     const match = glob.sync(path)[0];
     if (match && fs.existsSync(match)) {
       console.log("✅ Wykryto przeglądarkę pod ścieżką:", match);
       return match;
+    } else {
+      console.log(`❌ Nie znaleziono pod: ${path}`);
     }
+  }
+
+  // Diagnostyczne logowanie zawartości katalogu Puppeteera:
+  try {
+    const output = execSync("ls -R /opt/render/.cache/puppeteer", { encoding: "utf8" });
+    console.log("📂 Zawartość /opt/render/.cache/puppeteer:\n" + output);
+  } catch (err) {
+    console.warn("⚠️ Nie udało się odczytać folderu Puppeteera:", err.message);
   }
 
   return null;
