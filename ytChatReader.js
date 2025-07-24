@@ -1,28 +1,17 @@
 const fs = require("fs");
-const path = require("path");
 const axios = require("axios");
+const glob = require("glob");
 const puppeteer = require("puppeteer-core");
 
 const API_KEY = "AIzaSyCOR5QRFiHR-hZln9Zb2pHfOnyCANK0Yaw";
-const CHANNEL_ID = "UC4kNxGD9VWcYEMrYtdV7oFA"; // @alsotom
+const CHANNEL_ID = "UC4kNxGD9VWcYEMrYtdV7oFA"; // kanał @alsotom
 
-function getExecutablePath() {
-  const base = "/opt/render/.cache/puppeteer";
-  console.log("🔍 Szukam przeglądarki w:", base);
-
-  if (!fs.existsSync(base)) throw new Error("❌ Folder base nie istnieje");
-
-  const subdirs = fs.readdirSync(base);
-  console.log("📁 Zawartość folderu puppeteer:", subdirs);
-
-  const chromeDir = subdirs.find(d => d.includes("chrome") || d.includes("chromium"));
-  if (!chromeDir) throw new Error("❌ Nie znaleziono katalogu z Chrome");
-
-  const fullPath = path.join(base, chromeDir, "chrome-linux64", "chrome");
-  if (!fs.existsSync(fullPath)) throw new Error("❌ Nie znaleziono pliku chrome");
-
-  console.log("✅ Ścieżka do przeglądarki:", fullPath);
-  return fullPath;
+function findExecutablePath() {
+  const pattern = "/opt/render/.cache/puppeteer/chrome/**/chrome";
+  const matches = glob.sync(pattern);
+  if (matches.length === 0) return null;
+  console.log("✅ Wykryto Chromium pod ścieżką:", matches[0]);
+  return matches[0];
 }
 
 async function tryGetLiveIdFromAPI(channelId) {
@@ -74,7 +63,9 @@ async function startYouTubeChat(videoId, io) {
       return startPollingChat(liveChatId, io);
     }
 
-    const exePath = getExecutablePath();
+    const exePath = findExecutablePath();
+    if (!exePath) throw new Error("❌ Nie znaleziono przeglądarki w systemie!");
+
     const browser = await puppeteer.launch({
       headless: "new",
       args: ['--no-sandbox'],
@@ -95,7 +86,7 @@ async function startYouTubeChat(videoId, io) {
 
     await browser.close();
 
-    if (!liveChatIdFromPage) throw new Error("❌ Brak liveChatId nawet po Puppeteerze.");
+    if (!liveChatIdFromPage) throw new Error("Brak liveChatId nawet po Puppeteerze.");
 
     console.log("🤖 liveChatId z Puppeteera:", liveChatIdFromPage);
     startPollingChat(liveChatIdFromPage, io);
