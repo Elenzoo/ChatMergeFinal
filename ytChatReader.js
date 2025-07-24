@@ -4,19 +4,25 @@ const axios = require("axios");
 const puppeteer = require("puppeteer-core");
 
 const API_KEY = "AIzaSyCOR5QRFiHR-hZln9Zb2pHfOnyCANK0Yaw";
-const CHANNEL_ID = "UC4kNxGD9VWcYEMrYtdV7oFA"; // alsotom
+const CHANNEL_ID = "UC4kNxGD9VWcYEMrYtdV7oFA"; // @alsotom
 
 function getExecutablePath() {
-  const base = "/opt/render/.cache/puppeteer/chrome";
+  const base = "/opt/render/.cache/puppeteer";
+  console.log("🔍 Szukam przeglądarki w:", base);
+
   if (!fs.existsSync(base)) throw new Error("❌ Folder base nie istnieje");
 
-  const linuxDir = fs.readdirSync(base).find(d => d.startsWith("linux-"));
-  if (!linuxDir) throw new Error("❌ Nie znaleziono katalogu linux-*");
+  const subdirs = fs.readdirSync(base);
+  console.log("📁 Zawartość folderu puppeteer:", subdirs);
 
-  const chromePath = path.join(base, linuxDir, "chrome-linux64", "chrome");
-  if (!fs.existsSync(chromePath)) throw new Error("❌ Brak pliku chrome");
+  const chromeDir = subdirs.find(d => d.includes("chrome") || d.includes("chromium"));
+  if (!chromeDir) throw new Error("❌ Nie znaleziono katalogu z Chrome");
 
-  return chromePath;
+  const fullPath = path.join(base, chromeDir, "chrome-linux64", "chrome");
+  if (!fs.existsSync(fullPath)) throw new Error("❌ Nie znaleziono pliku chrome");
+
+  console.log("✅ Ścieżka do przeglądarki:", fullPath);
+  return fullPath;
 }
 
 async function tryGetLiveIdFromAPI(channelId) {
@@ -25,7 +31,7 @@ async function tryGetLiveIdFromAPI(channelId) {
     const res = await axios.get(url);
     const items = res.data.items;
     if (items && items.length > 0) {
-      console.log("✅ Stream z API:", items[0].id.videoId);
+      console.log("✅ Stream znaleziony przez API:", items[0].id.videoId);
       return items[0].id.videoId;
     }
   } catch (err) {
@@ -39,7 +45,7 @@ async function tryGetLiveIdFromScraper(handle) {
     const html = await axios.get(`https://www.youtube.com/@${handle}/live`).then(r => r.data);
     const match = html.match(/"videoId":"(.*?)"/);
     if (match) {
-      console.log("✅ Stream z scrapera:", match[1]);
+      console.log("✅ Stream znaleziony przez scraper:", match[1]);
       return match[1];
     }
   } catch (err) {
@@ -49,53 +55,59 @@ async function tryGetLiveIdFromScraper(handle) {
 }
 
 async function getLiveVideoId() {
-  return await tryGetLiveIdFromAPI(CHANNEL_ID) || await tryGetLiveIdFromScraper("alsotom");
+  const api = await tryGetLiveIdFromAPI(CHANNEL_ID);
+  if (api) return api;
+
+  const scraper = await tryGetLiveIdFromScraper("alsotom");
+  if (scraper) return scraper;
+
+  throw new Error("❌ Nie znaleziono transmisji");
 }
 
 async function startYouTubeChat(videoId, io) {
   try {
-    const liveChatId = await fetchLiveChatId(videoId);
-    if (!liveChatId) throw new Error("❌ Brak liveChatId");
+    const res = await axios.get(`https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=${videoId}&key=${API_KEY}`);
+    const liveChatId = res.data.items?.[0]?.liveStreamingDetails?.activeLiveChatId;
 
-    console.log("💬 liveChatId:", liveChatId);
-    startPollingChat(liveChatId, io);
+    if (liveChatId) {
+      console.log("💬 liveChatId z API:", liveChatId);
+      return startPollingChat(liveChatId, io);
+    }
+
+    const exePath = getExecutablePath();
+    const browser = await puppeteer.launch({
+      headless: "new",
+      args: ['--no-sandbox'],
+      executablePath: exePath
+    });
+
+    const page = await browser.newPage();
+    await page.goto(`https://www.youtube.com/watch?v=${videoId}`, { waitUntil: 'domcontentloaded' });
+
+    const liveChatIdFromPage = await page.evaluate(() => {
+      try {
+        const ytcfg = window.ytcfg?.data;
+        return ytcfg?.LIVE_CHAT?.liveChatId || ytcfg?.live_chat?.liveChatId;
+      } catch {
+        return null;
+      }
+    });
+
+    await browser.close();
+
+    if (!liveChatIdFromPage) throw new Error("❌ Brak liveChatId nawet po Puppeteerze.");
+
+    console.log("🤖 liveChatId z Puppeteera:", liveChatIdFromPage);
+    startPollingChat(liveChatIdFromPage, io);
+
   } catch (err) {
-    console.error("❌ startYouTubeChat:", err.message);
+    console.error("❌ Nie udało się uruchomić czatu YouTube:", err.message);
   }
-}
-
-async function fetchLiveChatId(videoId) {
-  const apiUrl = `https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=${videoId}&key=${API_KEY}`;
-  try {
-    const res = await axios.get(apiUrl);
-    const id = res.data.items?.[0]?.liveStreamingDetails?.activeLiveChatId;
-    if (id) return id;
-  } catch (err) {
-    console.warn("❌ API nie zwróciło liveChatId:", err.message);
-  }
-
-  const executablePath = getExecutablePath();
-  const browser = await puppeteer.launch({
-    headless: "new",
-    args: ["--no-sandbox"],
-    executablePath
-  });
-
-  const page = await browser.newPage();
-  await page.goto(`https://www.youtube.com/watch?v=${videoId}`, { waitUntil: "domcontentloaded" });
-
-  const chatId = await page.evaluate(() => {
-    const ytcfg = window.ytcfg?.data;
-    return ytcfg?.LIVE_CHAT?.liveChatId || ytcfg?.live_chat?.liveChatId;
-  });
-
-  await browser.close();
-  return chatId;
 }
 
 async function startPollingChat(liveChatId, io) {
   let nextPageToken = "";
-  let interval = 5000;
+  let pollingInterval = 5000;
 
   const poll = async () => {
     try {
@@ -111,16 +123,17 @@ async function startPollingChat(liveChatId, io) {
           text: `${author}: ${text}`,
           timestamp: Date.now()
         });
-        console.log("▶️ YT:", author + ": " + text);
+        console.log("▶️ YouTube:", author + ": " + text);
       });
 
       nextPageToken = res.data.nextPageToken;
-      interval = res.data.pollingIntervalMillis || 5000;
+      pollingInterval = res.data.pollingIntervalMillis || 5000;
+
     } catch (err) {
-      console.warn("❌ Chat polling error:", err.message);
+      console.warn("❌ Błąd pobierania wiadomości z czatu:", err.message);
     }
 
-    setTimeout(poll, interval);
+    setTimeout(poll, pollingInterval);
   };
 
   poll();
