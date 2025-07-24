@@ -22,14 +22,14 @@ server.listen(PORT, () => {
   console.log(`✅ Serwer działa na http://localhost:${PORT}`);
 });
 
-// === TWITCH ===
+// === TWITCH CHAT ===
 const twitchClient = new tmi.Client({
   options: { debug: true },
   connection: {
     reconnect: true,
     secure: true
   },
-  channels: ['kajma']
+  channels: ['kajma'] // <- tutaj wpisz nazwę kanału Twitch
 });
 
 twitchClient.connect();
@@ -47,9 +47,10 @@ twitchClient.on('message', (channel, tags, message, self) => {
   io.emit('chatMessage', msg);
 });
 
-// === YOUTUBE ===
+// === YOUTUBE CHAT ===
 async function startYouTubeChat() {
   try {
+    console.log("🎯 Szukam aktywnego streama dla kanału @alsotom...");
     const videoId = await getLiveVideoId();
     if (!videoId) {
       console.log("📭 Brak aktywnego streama na YouTube");
@@ -86,4 +87,5 @@ async function startYouTubeChat() {
   }
 }
 
-startYouTubeChat("OxA769Y-5E4");
+// Start czatu YouTube po starcie serwera
+startYouTubeChat();
