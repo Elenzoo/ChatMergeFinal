@@ -1,10 +1,9 @@
 const axios = require("axios");
-const puppeteer = require("puppeteer");
+const puppeteer = require("puppeteer-core");
 
 const API_KEY = "AIzaSyCOR5QRFiHR-hZln9Zb2pHfOnyCANK0Yaw";
-const CHANNEL_ID = "UC4kNxGD9VWcYEMrYtdV7oFA";
+const CHANNEL_ID = "UC4kNxGD9VWcYEMrYtdV7oFA"; // @alsotom
 
-// === VIDEO ID (API + scraper fallback) ===
 async function tryGetLiveIdFromAPI(channelId) {
   try {
     const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&eventType=live&type=video&key=${API_KEY}`;
@@ -14,7 +13,6 @@ async function tryGetLiveIdFromAPI(channelId) {
       console.log("✅ Stream znaleziony przez API:", items[0].id.videoId);
       return items[0].id.videoId;
     }
-    console.warn("⚠️ API nie znalazło aktywnego streama – przechodzę do scrapera...");
   } catch (err) {
     console.warn("❌ Błąd API:", err.message);
   }
@@ -42,15 +40,14 @@ async function getLiveVideoId() {
   const scraper = await tryGetLiveIdFromScraper("alsotom");
   if (scraper) return scraper;
 
-  throw new Error("❌ Nie znaleziono transmisji (API + scraper zawiodły)");
+  throw new Error("❌ Nie znaleziono transmisji");
 }
 
-// === CZAT ===
 async function startYouTubeChat(videoId, io) {
   try {
-    // 🔍 1. SPRÓBUJ PRZEZ API
-    const apiUrl = `https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=${videoId}&key=${API_KEY}`;
-    const res = await axios.get(apiUrl);
+    // 1. Próba przez API
+    const infoUrl = `https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=${videoId}&key=${API_KEY}`;
+    const res = await axios.get(infoUrl);
     const liveChatId = res.data.items?.[0]?.liveStreamingDetails?.activeLiveChatId;
 
     if (liveChatId) {
@@ -58,10 +55,13 @@ async function startYouTubeChat(videoId, io) {
       return startPollingChat(liveChatId, io);
     }
 
-    console.warn("⚠️ API nie zwróciło liveChatId – spróbuję Puppeteera...");
+    // 2. Puppeteer-core fallback
+    const browser = await puppeteer.launch({
+      headless: "new",
+      args: ['--no-sandbox'],
+      executablePath: "/usr/bin/chromium-browser" // <- najczęstsza ścieżka w Render
+    });
 
-    // 🤖 2. FALLBACK: PUPPETEER
-    const browser = await puppeteer.launch({ headless: "new", args: ['--no-sandbox'] });
     const page = await browser.newPage();
     await page.goto(`https://www.youtube.com/watch?v=${videoId}`, { waitUntil: 'domcontentloaded' });
 
@@ -69,7 +69,7 @@ async function startYouTubeChat(videoId, io) {
       try {
         const ytcfg = window.ytcfg?.data;
         return ytcfg?.LIVE_CHAT?.liveChatId || ytcfg?.live_chat?.liveChatId;
-      } catch (e) {
+      } catch {
         return null;
       }
     });
@@ -82,11 +82,10 @@ async function startYouTubeChat(videoId, io) {
     startPollingChat(liveChatIdFromPage, io);
 
   } catch (err) {
-    console.error("❌ Nie udało się rozpocząć czatu YouTube:", err.message);
+    console.error("❌ Nie udało się uruchomić czatu YouTube:", err.message);
   }
 }
 
-// === POLLING: liveChat.messages.list ===
 async function startPollingChat(liveChatId, io) {
   let nextPageToken = "";
   let pollingInterval = 5000;
@@ -95,28 +94,24 @@ async function startPollingChat(liveChatId, io) {
     try {
       const url = `https://www.googleapis.com/youtube/v3/liveChat/messages?liveChatId=${liveChatId}&part=snippet,authorDetails&key=${API_KEY}&pageToken=${nextPageToken}`;
       const res = await axios.get(url);
-
       const messages = res.data.items || [];
 
       messages.forEach(msg => {
         const author = msg.authorDetails.displayName;
         const text = msg.snippet.displayMessage;
-
-        const data = {
+        io.emit("chatMessage", {
           source: "YouTube",
           text: `${author}: ${text}`,
           timestamp: Date.now()
-        };
-
-        console.log("▶️ YouTube:", data.text);
-        io.emit("chatMessage", data);
+        });
+        console.log("▶️ YouTube:", author + ": " + text);
       });
 
       nextPageToken = res.data.nextPageToken;
       pollingInterval = res.data.pollingIntervalMillis || 5000;
 
     } catch (err) {
-      console.warn("❌ Błąd w pobieraniu wiadomości:", err.message);
+      console.warn("❌ Błąd pobierania wiadomości z czatu:", err.message);
     }
 
     setTimeout(poll, pollingInterval);
@@ -125,7 +120,6 @@ async function startPollingChat(liveChatId, io) {
   poll();
 }
 
-// === Eksport ===
 module.exports = {
   getLiveVideoId,
   startYouTubeChat
