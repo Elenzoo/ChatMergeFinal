@@ -6,8 +6,17 @@ const puppeteer = require("puppeteer-core");
 const API_KEY = "AIzaSyCOR5QRFiHR-hZln9Zb2pHfOnyCANK0Yaw";
 const CHANNEL_ID = "UC4kNxGD9VWcYEMrYtdV7oFA"; // @alsotom
 
-function getExecutablePath() {
-  return "/opt/render/.cache/puppeteer/chrome/linux-138.0.7204.168/chrome-linux64/chrome";
+// 🔍 Automatyczne pobieranie Chromium i zwrot jego ścieżki
+async function resolveChromiumExecutablePath() {
+  const browserFetcher = puppeteer.createBrowserFetcher();
+  const revisionInfo = await browserFetcher.download("138.0.7204.168");
+
+  if (!revisionInfo.executablePath) {
+    throw new Error("❌ Nie udało się uzyskać executablePath z Puppeteera.");
+  }
+
+  console.log("✅ Detected Chromium path:", revisionInfo.executablePath);
+  return revisionInfo.executablePath;
 }
 
 async function tryGetLiveIdFromAPI(channelId) {
@@ -59,7 +68,7 @@ async function startYouTubeChat(videoId, io) {
       return startPollingChat(liveChatId, io);
     }
 
-    const executablePath = getExecutablePath();
+    const executablePath = await resolveChromiumExecutablePath();
 
     const browser = await puppeteer.launch({
       headless: "new",
