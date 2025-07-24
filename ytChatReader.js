@@ -1,8 +1,19 @@
+const fs = require("fs");
 const axios = require("axios");
 const puppeteer = require("puppeteer-core");
 
 const API_KEY = "AIzaSyCOR5QRFiHR-hZln9Zb2pHfOnyCANK0Yaw";
 const CHANNEL_ID = "UC4kNxGD9VWcYEMrYtdV7oFA"; // @alsotom
+
+function findExecutablePath() {
+  const paths = [
+    "/usr/bin/google-chrome-stable",
+    "/usr/bin/google-chrome",
+    "/usr/bin/chromium",
+    "/usr/bin/chromium-browser"
+  ];
+  return paths.find(p => fs.existsSync(p));
+}
 
 async function tryGetLiveIdFromAPI(channelId) {
   try {
@@ -45,9 +56,7 @@ async function getLiveVideoId() {
 
 async function startYouTubeChat(videoId, io) {
   try {
-    // 1. Próba przez API
-    const infoUrl = `https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=${videoId}&key=${API_KEY}`;
-    const res = await axios.get(infoUrl);
+    const res = await axios.get(`https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=${videoId}&key=${API_KEY}`);
     const liveChatId = res.data.items?.[0]?.liveStreamingDetails?.activeLiveChatId;
 
     if (liveChatId) {
@@ -55,11 +64,13 @@ async function startYouTubeChat(videoId, io) {
       return startPollingChat(liveChatId, io);
     }
 
-    // 2. Puppeteer-core fallback
+    const exePath = findExecutablePath();
+    if (!exePath) throw new Error("❌ Nie znaleziono przeglądarki w systemie!");
+
     const browser = await puppeteer.launch({
       headless: "new",
       args: ['--no-sandbox'],
-      executablePath: "/usr/bin/chromium-browser" // <- najczęstsza ścieżka w Render
+      executablePath: exePath
     });
 
     const page = await browser.newPage();
