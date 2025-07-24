@@ -4,7 +4,8 @@
   "description": "ChatMerge backend - Twitch & YouTube chat for Electron overlay",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "postinstall": "npx puppeteer install"
   },
   "author": "ElEnzo",
   "license": "MIT",
