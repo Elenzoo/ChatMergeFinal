@@ -1,64 +1,39 @@
 /*!
- * ChatMerge App | Autor: ElEnzo | © 2025 | tryb testowy
+ * ChatMerge App | Autor: ElEnzo | © 2025
  */
 
 const axios = require("axios");
 const cheerio = require("cheerio");
 
-const API_KEY = "AIzaSyCOR5QRFiHR-hZln9Zb2pHfOnyCANK0Yaw";
-const CHANNEL_ID = "UC_x5XG1OV2P6uZZ5FSM9Ttw"; // Google Developers
+const YT_API_KEY = "AIzaSyCOR5QRFiHR-hZln9Zb2pHfOnyCANK0Yaw";
+const VIDEO_ID = "LHD3LSAiDi0";
 const CHANNEL_URL = "https://www.youtube.com/@GoogleDevelopers";
 
-async function getLiveVideoIdFromAPI() {
-  const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${CHANNEL_ID}&eventType=live&type=video&key=${API_KEY}`;
-  const { data } = await axios.get(url);
+async function getLiveVideoId() {
+  // Można też sprawdzić przez API, ale my znamy ID
+  console.log("📡 Używam ręcznego ID do testów:", VIDEO_ID);
 
-  console.log("📦 API response:", JSON.stringify(data, null, 2));
-
-  const video = data.items?.[0];
-  return video?.id?.videoId || null;
-}
-
-async function getLiveVideoIdFromScraper() {
-  try {
-    const { data: html } = await axios.get(CHANNEL_URL);
-    const $ = cheerio.load(html);
-    const scriptData = $("script")
-      .map((_, el) => $(el).html())
-      .get()
-      .find((txt) => txt && txt.includes("videoId"));
-
-    const match = scriptData?.match(/"videoId":"(.*?)"/);
-    return match ? match[1] : null;
-  } catch (err) {
-    console.error("❌ Scraper error:", err.message);
+  const isRestricted = await isAgeRestricted(VIDEO_ID);
+  if (isRestricted) {
+    console.log("🔞 Stream ma ograniczenia wiekowe – czat niedostępny");
     return null;
   }
+
+  return VIDEO_ID;
 }
 
-async function getLiveVideoId() {
+async function isAgeRestricted(videoId) {
   try {
-    console.log("🌐 Próbuję przez YouTube API...");
-    const videoId = await getLiveVideoIdFromAPI();
+    const url = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${videoId}&key=${YT_API_KEY}`;
+    const { data } = await axios.get(url);
+    const item = data.items && data.items[0];
+    const restricted = item?.contentDetails?.contentRating?.ytRating === "ytAgeRestricted";
 
-    if (videoId) {
-      console.log("✅ ID streama z API:", videoId);
-      return videoId;
-    }
-
-    console.log("⚠️ API nie znalazło live – przechodzę do scrapera...");
-    const fallbackId = await getLiveVideoIdFromScraper();
-
-    if (fallbackId) {
-      console.log("✅ ID streama ze scrapera:", fallbackId);
-      return fallbackId;
-    }
-
-    console.log("📭 Nie znaleziono aktywnego streama (API i scraper)");
-    return null;
+    console.log(`🔍 Ograniczenie wiekowe: ${restricted}`);
+    return restricted;
   } catch (err) {
-    console.error("❌ Błąd w getLiveVideoId:", err.message);
-    return null;
+    console.error("❌ Błąd sprawdzania ograniczenia wieku:", err.message);
+    return false;
   }
 }
 
