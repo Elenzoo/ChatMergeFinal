@@ -5,16 +5,6 @@ const puppeteer = require("puppeteer-core");
 const API_KEY = "AIzaSyCOR5QRFiHR-hZln9Zb2pHfOnyCANK0Yaw";
 const CHANNEL_ID = "UC4kNxGD9VWcYEMrYtdV7oFA"; // @alsotom
 
-function findExecutablePath() {
-  const paths = [
-    "/usr/bin/google-chrome-stable",
-    "/usr/bin/google-chrome",
-    "/usr/bin/chromium",
-    "/usr/bin/chromium-browser"
-  ];
-  return paths.find(p => fs.existsSync(p));
-}
-
 async function tryGetLiveIdFromAPI(channelId) {
   try {
     const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&eventType=live&type=video&key=${API_KEY}`;
@@ -64,13 +54,9 @@ async function startYouTubeChat(videoId, io) {
       return startPollingChat(liveChatId, io);
     }
 
-    const exePath = findExecutablePath();
-    if (!exePath) throw new Error("❌ Nie znaleziono przeglądarki w systemie!");
-
     const browser = await puppeteer.launch({
       headless: "new",
-      args: ['--no-sandbox'],
-      executablePath: exePath
+      args: ['--no-sandbox']
     });
 
     const page = await browser.newPage();
