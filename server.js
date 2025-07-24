@@ -6,8 +6,7 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const tmi = require("tmi.js");
-const { LiveChat } = require("youtube-chat");
-const { getLiveVideoId } = require("./ytChatReader");
+const { getLiveVideoId, startYouTubeChatOfficial } = require("./ytChatReader");
 
 const app = express();
 
@@ -47,7 +46,7 @@ twitchClient.on('message', (channel, tags, message, self) => {
   io.emit('chatMessage', msg);
 });
 
-// === YOUTUBE CHAT ===
+// === YOUTUBE CHAT (oficjalne API) ===
 async function startYouTubeChat() {
   try {
     console.log("🎯 Szukam aktywnego streama dla kanału @alsotom...");
@@ -59,30 +58,8 @@ async function startYouTubeChat() {
     }
 
     console.log("🔴 YouTube Live ID:", videoId);
+    startYouTubeChatOfficial(videoId, io); // Użycie oficjalnego API
 
-    const chat = new LiveChat({ liveId: videoId });
-
-    chat.on("chat", (msg) => {
-      const messageText = Array.isArray(msg.message)
-        ? msg.message.map(m => m.text).join(' ')
-        : msg.message.text || msg.message;
-
-      const text = `${msg.author.name}: ${messageText}`;
-      const data = {
-        source: "YouTube",
-        text,
-        timestamp: Date.now()
-      };
-
-      console.log("▶️ YouTube:", data.text);
-      io.emit("chatMessage", data);
-    });
-
-    chat.on("end", () => {
-      console.log("📴 Live zakończony");
-    });
-
-    await chat.start();
   } catch (err) {
     console.log("❌ Błąd przy pobieraniu ID streama:", err.message);
   }
