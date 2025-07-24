@@ -1,17 +1,29 @@
 const fs = require("fs");
 const axios = require("axios");
-const glob = require("glob");
 const puppeteer = require("puppeteer-core");
+const glob = require("glob");
 
 const API_KEY = "AIzaSyCOR5QRFiHR-hZln9Zb2pHfOnyCANK0Yaw";
-const CHANNEL_ID = "UC4kNxGD9VWcYEMrYtdV7oFA"; // kanał @alsotom
+const CHANNEL_ID = "UC4kNxGD9VWcYEMrYtdV7oFA"; // @alsotom
 
 function findExecutablePath() {
-  const pattern = "/opt/render/.cache/puppeteer/chrome/**/chrome";
-  const matches = glob.sync(pattern);
-  if (matches.length === 0) return null;
-  console.log("✅ Wykryto Chromium pod ścieżką:", matches[0]);
-  return matches[0];
+  const paths = [
+    "/opt/render/.cache/puppeteer/chrome/linux-*/chrome", // Puppeteer Lite (Render)
+    "/usr/bin/google-chrome-stable",
+    "/usr/bin/google-chrome",
+    "/usr/bin/chromium",
+    "/usr/bin/chromium-browser"
+  ];
+
+  for (const path of paths) {
+    const match = glob.sync(path)[0];
+    if (match && fs.existsSync(match)) {
+      console.log("✅ Wykryto przeglądarkę pod ścieżką:", match);
+      return match;
+    }
+  }
+
+  return null;
 }
 
 async function tryGetLiveIdFromAPI(channelId) {
@@ -68,12 +80,12 @@ async function startYouTubeChat(videoId, io) {
 
     const browser = await puppeteer.launch({
       headless: "new",
-      args: ['--no-sandbox'],
+      args: ["--no-sandbox"],
       executablePath: exePath
     });
 
     const page = await browser.newPage();
-    await page.goto(`https://www.youtube.com/watch?v=${videoId}`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`https://www.youtube.com/watch?v=${videoId}`, { waitUntil: "domcontentloaded" });
 
     const liveChatIdFromPage = await page.evaluate(() => {
       try {
@@ -106,7 +118,7 @@ async function startPollingChat(liveChatId, io) {
       const res = await axios.get(url);
       const messages = res.data.items || [];
 
-      messages.forEach(msg => {
+      messages.forEach((msg) => {
         const author = msg.authorDetails.displayName;
         const text = msg.snippet.displayMessage;
         io.emit("chatMessage", {
