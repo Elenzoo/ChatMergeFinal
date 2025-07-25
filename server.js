@@ -2,10 +2,9 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const tmi = require("tmi.js");
-const { getLiveVideoId, startYouTubeChat } = require("./ytChatReader");
+const { startYouTubeChat } = require("./ytChatReader");
 
 const app = express();
-
 app.use("/socket.io", express.static(__dirname + "/node_modules/socket.io/client-dist"));
 
 const server = http.createServer(app);
@@ -14,6 +13,7 @@ const io = new Server(server);
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`✅ Serwer działa na http://localhost:${PORT}`);
+  startYouTubeChat(io); // <-- YouTube odpala się po starcie
 });
 
 // === TWITCH ===
@@ -35,20 +35,3 @@ twitchClient.on("message", (channel, tags, message, self) => {
   console.log("🎮 Twitch:", msg.text);
   io.emit("chatMessage", msg);
 });
-
-// === YOUTUBE ===
-async function startYouTubeChatWrapper() {
-  try {
-    console.log("🎯 Szukam aktywnego streama na YouTube...");
-    const videoId = await getLiveVideoId();
-    if (!videoId) {
-      console.log("📭 Brak aktywnego streama");
-      return;
-    }
-    await startYouTubeChat(videoId, io);
-  } catch (err) {
-    console.log("❌ Błąd startu czatu YT:", err.message);
-  }
-}
-
-startYouTubeChatWrapper();
