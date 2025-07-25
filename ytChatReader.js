@@ -1,7 +1,7 @@
 // ytChatReader.js
 const axios = require("axios");
 
-const API_KEY = "AIzaSyDZkmm3O6qea-3MKCV0Rd8ymIXlC7B_d5o";
+cost API_KEY = "AIzaSyDZkmm3O6qea-3MKCV0Rd8ymIXlC7B_d5o";
 const CHANNEL_ID = "UC4GcVWu_yAseBVZqlygv6Cw"; // Kajma
 
 let latestMessageTimestamp = 0;
