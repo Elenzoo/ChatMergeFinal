@@ -13,7 +13,19 @@ const io = new Server(server);
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`✅ Serwer działa na http://localhost:${PORT}`);
-  startYouTubeChat(io); // <-- YouTube odpala się po starcie
+});
+
+// === YOUTUBE ===
+let youtubeStarted = false;
+
+io.on("connection", (socket) => {
+  console.log("🔌 Połączono z frontendem");
+
+  if (!youtubeStarted) {
+    youtubeStarted = true;
+    console.log("▶️ Uruchamiam czat YouTube...");
+    startYouTubeChat(io);
+  }
 });
 
 // === TWITCH ===
@@ -34,4 +46,9 @@ twitchClient.on("message", (channel, tags, message, self) => {
   };
   console.log("🎮 Twitch:", msg.text);
   io.emit("chatMessage", msg);
+});
+
+io.on("connection", (socket) => {
+  console.log("✅ Nowe połączenie z frontendem");
+  socket.emit("server-status", "ready");
 });
