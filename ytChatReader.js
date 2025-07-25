@@ -1,11 +1,10 @@
 // ytChatReader.js
 const axios = require("axios");
 
-cost API_KEY = "AIzaSyDZkmm3O6qea-3MKCV0Rd8ymIXlC7B_d5o";
+const API_KEY = "AIzaSyDZkmm3O6qea-3MKCV0Rd8ymIXlC7B_d5o";
 const CHANNEL_ID = "UC4GcVWu_yAseBVZqlygv6Cw"; // Kajma
 
 let latestMessageTimestamp = 0;
-let liveVideoId = null;
 
 async function getLiveVideoId() {
   const url = `https://www.googleapis.com/youtube/v3/search?part=id&channelId=${CHANNEL_ID}&eventType=live&type=video&key=${API_KEY}`;
@@ -18,21 +17,40 @@ async function getLiveVideoId() {
   }
 }
 
-async function startYouTubeChat(io) {
-  console.log("📡 Szukam liveChatId...");
-  liveVideoId = await getLiveVideoId();
+async function getLiveChatId(videoId) {
+  const url = `https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=${videoId}&key=${API_KEY}`;
+  const res = await axios.get(url);
+  const items = res.data.items;
+  if (items.length > 0 && items[0].liveStreamingDetails?.activeLiveChatId) {
+    return items[0].liveStreamingDetails.activeLiveChatId;
+  }
+  return null;
+}
 
-  if (!liveVideoId) {
+async function startYouTubeChat(io) {
+  console.log("📡 Szukam live streama i czatu...");
+  const videoId = await getLiveVideoId();
+  if (!videoId) {
     console.log("❌ Brak aktywnego streama.");
     return;
   }
+  console.log("✅ Live stream znaleziony:", videoId);
 
-  console.log("✅ Live stream znaleziony:", liveVideoId);
-  let nextPageToken = "";
+  const liveChatId = await getLiveChatId(videoId);
+  if (!liveChatId) {
+    console.log("❌ Nie znaleziono aktywnego czatu.");
+    return;
+  }
+
+  let nextPageToken = null;
 
   setInterval(async () => {
     try {
-      const url = `https://www.googleapis.com/youtube/v3/liveChat/messages?liveChatId=${liveVideoId}&part=snippet,authorDetails&key=${API_KEY}&pageToken=${nextPageToken}`;
+      let url = `https://www.googleapis.com/youtube/v3/liveChat/messages?liveChatId=${liveChatId}&part=snippet,authorDetails&key=${API_KEY}`;
+      if (nextPageToken) {
+        url += `&pageToken=${nextPageToken}`;
+      }
+
       const res = await axios.get(url);
       nextPageToken = res.data.nextPageToken;
 
