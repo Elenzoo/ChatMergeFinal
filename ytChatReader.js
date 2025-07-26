@@ -17,10 +17,13 @@ let latestMessageTimestamp = 0;
 let chatActive = false;
 let ioRef = null;
 
-// 🔁 Callback od serwera
-let setYouTubeActive = (v) => {};
-
 const tokensUsed = apiKeys.map(() => 0);
+
+// === CALLBACK do ustawiania statusu na serwerze ===
+let setYouTubeActive = () => {};
+function injectSetYouTubeActive(fn) {
+  setYouTubeActive = fn;
+}
 
 // === RESET TOKENÓW O PÓŁNOCY ===
 function scheduleDailyReset() {
@@ -59,7 +62,7 @@ async function getLiveVideoId(channelId) {
   return null;
 }
 
-// === SAFE AXIOS GET ===
+// === SAFE AXIOS GET Z OBSŁUGĄ LIMITÓW I PRZEŁĄCZENIEM KLUCZY ===
 async function safeAxiosGet(url) {
   for (let i = 0; i < apiKeys.length; i++) {
     const realIndex = (currentKeyIndex + i) % apiKeys.length;
@@ -101,9 +104,8 @@ function startPollingChat() {
 
   chatActive = true;
   isPolling = true;
-
-  console.log("▶️ Start czatu YouTube (polling)...");
   setYouTubeActive(true);
+  console.log("▶️ Start czatu YouTube (polling)...");
 
   pollingInterval = setInterval(async () => {
     if (!isPolling) return;
@@ -174,9 +176,13 @@ async function startYouTubeChat(io, channelId) {
   }
 }
 
-// === API DLA SERVERA ===
-function injectSetYouTubeActive(fn) {
-  setYouTubeActive = fn;
+// === STOP SYSTEMU CZATU YT ===
+function stopYouTubeChat() {
+  console.log("🛑 Zatrzymuję czat YouTube");
+  stopPollingChat();
+  chatId = null;
+  nextPageToken = null;
+  latestMessageTimestamp = 0;
 }
 
 module.exports = {
