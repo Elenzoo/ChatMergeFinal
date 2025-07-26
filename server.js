@@ -7,7 +7,6 @@ const { startYouTubeChat, stopYouTubeChat } = require("./ytChatReader");
 const app = express();
 const server = http.createServer(app);
 
-// 🔒 CORS – pozwalamy tylko Twojej aplikacji frontendowej
 const io = new Server(server, {
   cors: {
     origin: "https://chatmerge.onrender.com",
@@ -15,7 +14,6 @@ const io = new Server(server, {
   }
 });
 
-// ✅ Socket.IO client (dla Electron) – nie stanowi zagrożenia
 app.use("/socket.io", express.static(__dirname + "/node_modules/socket.io/client-dist"));
 
 const PORT = process.env.PORT || 3000;
@@ -23,34 +21,38 @@ server.listen(PORT, () => {
   console.log(`✅ Serwer działa na http://localhost:${PORT}`);
 });
 
-// === YOUTUBE CHAT ===
+// === STATUSY ===
 let youtubeStarted = false;
 let isYouTubeChatReady = false;
+let isTwitchConnected = false;
 
-// Funkcja pomocnicza do sprawdzenia statusu czatu YT
 function getChatStatus() {
   return isYouTubeChatReady;
 }
 
-// === POŁĄCZENIE SOCKET.IO ===
+// === SOCKET.IO ===
 io.on("connection", (socket) => {
   console.log("✅ Nowe połączenie z frontendem");
 
-  // 🔁 Nasłuch pingów – odpowiadamy tylko jeśli czat działa
+  // Ping z frontendu – odpowiadamy statusem
   socket.on("ping-server", () => {
-    if (getChatStatus()) {
-      console.log("📡 Otrzymano ping – czat działa ✔️");
-      socket.emit("server-status", "ready");
-    } else {
-      console.log("📡 Otrzymano ping – czat NIEDOSTĘPNY ❌");
-      socket.emit("server-status", "not-ready");
-    }
+    const status = {
+      server: true,
+      youtube: getChatStatus(),
+      twitch: isTwitchConnected
+    };
+    console.log("📡 Ping → status:", status);
+    socket.emit("server-status", status);
   });
 
-  // 👋 Info powitalne na start
-  socket.emit("server-status", getChatStatus() ? "ready" : "not-ready");
+  // Status powitalny przy połączeniu
+  socket.emit("server-status", {
+    server: true,
+    youtube: getChatStatus(),
+    twitch: isTwitchConnected
+  });
 
-  // ▶️ Start czatu YT (tylko raz)
+  // Start czatu YT (raz)
   if (!youtubeStarted) {
     youtubeStarted = true;
     console.log("▶️ Uruchamiam czat YouTube...");
@@ -65,7 +67,6 @@ io.on("connection", (socket) => {
       });
   }
 
-  // 🔁 Manualny reset czatu przez frontend
   socket.on("force-reset-chat", () => {
     console.log("🔁 Manualny reset czatu YouTube!");
     stopYouTubeChat();
@@ -83,8 +84,6 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     console.log("🔌 Rozłączono frontend");
   });
-
-  // 🔐 NIE nasłuchujemy żadnych innych danych od klienta!
 });
 
 // === TWITCH CHAT ===
@@ -95,6 +94,16 @@ const twitchClient = new tmi.Client({
 });
 
 twitchClient.connect();
+
+twitchClient.on("connected", () => {
+  isTwitchConnected = true;
+  console.log("✅ Twitch połączony");
+});
+
+twitchClient.on("disconnected", () => {
+  isTwitchConnected = false;
+  console.log("🔌 Twitch rozłączony");
+});
 
 twitchClient.on("message", (channel, tags, message, self) => {
   if (self) return;
