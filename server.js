@@ -2,12 +2,11 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const tmi = require("tmi.js");
-const { startYouTubeChat, stopYouTubeChat } = require("./ytChatReader");
+const ytChat = require("./ytChatReader");
 
 const app = express();
 const server = http.createServer(app);
 
-// 🔒 CORS – pozwalamy tylko Twojej aplikacji frontendowej
 const io = new Server(server, {
   cors: {
     origin: "https://chatmerge.onrender.com",
@@ -15,7 +14,6 @@ const io = new Server(server, {
   }
 });
 
-// ✅ Socket.IO client (dla Electron) – nie stanowi zagrożenia
 app.use("/socket.io", express.static(__dirname + "/node_modules/socket.io/client-dist"));
 
 const PORT = process.env.PORT || 3000;
@@ -28,19 +26,24 @@ const activeClients = new Set();
 const YT_CHANNEL_ID = "UCa3HO9MlbTpEUjLjyslBuHg";
 
 let twitchConnected = false;
-let youtubeActive = false; // kontrolowane przez czat
+let youtubeActive = false;
+
+// 💡 przekazujemy callback do ytChat bez circular import
+ytChat.injectSetYouTubeActive((status) => {
+  youtubeActive = status;
+});
+
+const { startYouTubeChat, stopYouTubeChat } = ytChat;
 
 io.on("connection", (socket) => {
   console.log(`🟢 Klient połączony: ${socket.id}`);
   activeClients.add(socket.id);
 
-  // Pierwszy klient – start czatu
   if (activeClients.size === 1) {
     console.log("▶️ Pierwszy klient – startuję czat YouTube");
     startYouTubeChat(io, YT_CHANNEL_ID);
   }
 
-  // Odpowiedź na ping
   socket.on("ping-server", () => {
     console.log("📡 Otrzymano ping od klienta");
     socket.emit("server-status", {
@@ -50,7 +53,6 @@ io.on("connection", (socket) => {
     });
   });
 
-  // Ręczny reset czatu z frontu
   socket.on("force-reset-chat", () => {
     console.log("🔁 Manualny reset czatu YouTube!");
     startYouTubeChat(io, YT_CHANNEL_ID);
@@ -60,7 +62,6 @@ io.on("connection", (socket) => {
     console.log(`🔴 Klient rozłączony: ${socket.id}`);
     activeClients.delete(socket.id);
 
-    // Ostatni klient się rozłączył – stop czatu
     if (activeClients.size === 0) {
       console.log("⛔ Brak klientów – zatrzymuję czat YouTube");
       stopYouTubeChat();
@@ -69,7 +70,6 @@ io.on("connection", (socket) => {
   });
 });
 
-// Co 30 sek. wysyłamy ping tylko do aktywnych klientów
 setInterval(() => {
   activeClients.forEach(socketId => {
     const clientSocket = io.sockets.sockets.get(socketId);
@@ -110,9 +110,3 @@ twitchClient.on("message", (channel, tags, message, self) => {
   console.log("🎮 Twitch:", msg.text);
   io.emit("chatMessage", msg);
 });
-
-// === Obsługa czatu YT – update statusu ===
-function setYouTubeActive(status) {
-  youtubeActive = status;
-}
-module.exports.setYouTubeActive = setYouTubeActive;
