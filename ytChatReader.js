@@ -1,5 +1,4 @@
 const axios = require("axios");
-const { setYouTubeActive } = require("./server"); // 🔥 nowość
 
 const apiKeys = [
   "AIzaSyCOR5QRFiHR-hZln9Zb2pHfOnyCANK0Yaw",
@@ -18,9 +17,19 @@ let latestMessageTimestamp = 0;
 let chatActive = false;
 let ioRef = null;
 
+// 🔁 Zmienna na przekazany z zewnątrz callback
+let setStatusCallback = () => {};
+
+function injectSetYouTubeActive(fn) {
+  setStatusCallback = fn;
+}
+
+function setYouTubeActive(status) {
+  setStatusCallback(status);
+}
+
 const tokensUsed = apiKeys.map(() => 0);
 
-// === RESET TOKENÓW O PÓŁNOCY ===
 function scheduleDailyReset() {
   const now = new Date();
   const nextMidnight = new Date();
@@ -35,7 +44,6 @@ function scheduleDailyReset() {
 }
 scheduleDailyReset();
 
-// === POBIERANIE ID TRANSMISJI LIVE ===
 async function getLiveVideoId(channelId) {
   for (let i = 0; i < apiKeys.length; i++) {
     const key = apiKeys[i];
@@ -57,7 +65,6 @@ async function getLiveVideoId(channelId) {
   return null;
 }
 
-// === SAFE AXIOS GET Z OBSŁUGĄ LIMITÓW I PRZEŁĄCZENIEM KLUCZY ===
 async function safeAxiosGet(url) {
   for (let i = 0; i < apiKeys.length; i++) {
     const realIndex = (currentKeyIndex + i) % apiKeys.length;
@@ -85,7 +92,6 @@ async function safeAxiosGet(url) {
   throw new Error("🚫 Wszystkie klucze zawiodły.");
 }
 
-// === START POLLERA CZATU ===
 function startPollingChat() {
   if (!chatId) {
     console.error("❌ Brak chatId. Nie można rozpocząć nasłuchu.");
@@ -101,7 +107,7 @@ function startPollingChat() {
   isPolling = true;
 
   console.log("▶️ Start czatu YouTube (polling)...");
-  setYouTubeActive(true); // 🔥 informujemy serwer że YouTube czat działa
+  setYouTubeActive(true);
 
   pollingInterval = setInterval(async () => {
     if (!isPolling) return;
@@ -134,7 +140,6 @@ function startPollingChat() {
   }, 3000);
 }
 
-// === STOP POLLERA ===
 function stopPollingChat() {
   if (!chatActive) {
     console.log("⏸️ Poller już był zatrzymany.");
@@ -150,10 +155,9 @@ function stopPollingChat() {
   }
 
   console.log("⏹️ Zatrzymano polling czatu YouTube.");
-  setYouTubeActive(false); // 🔥 informujemy serwer że czat YouTube nieaktywny
+  setYouTubeActive(false);
 }
 
-// === START SYSTEMU CZATU YT ===
 async function startYouTubeChat(io, channelId) {
   ioRef = io;
 
@@ -172,7 +176,6 @@ async function startYouTubeChat(io, channelId) {
   }
 }
 
-// === STOP SYSTEMU CZATU YT ===
 function stopYouTubeChat() {
   console.log("🛑 Zatrzymuję czat YouTube");
   stopPollingChat();
@@ -183,5 +186,6 @@ function stopYouTubeChat() {
 
 module.exports = {
   startYouTubeChat,
-  stopYouTubeChat
+  stopYouTubeChat,
+  injectSetYouTubeActive
 };
