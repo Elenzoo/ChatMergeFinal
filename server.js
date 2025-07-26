@@ -16,6 +16,13 @@ const io = new Server(server, {
 
 app.use("/socket.io", express.static(__dirname + "/node_modules/socket.io/client-dist"));
 
+// === WAKE PING dla Render ===
+app.get("/wake", (req, res) => {
+  console.log("📡 Wake ping otrzymany");
+  res.send("OK");
+});
+
+
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`✅ Serwer działa na http://localhost:${PORT}`);
