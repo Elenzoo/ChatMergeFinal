@@ -7,40 +7,40 @@ const ytChat = require("./ytChatReader");
 const app = express();
 const server = http.createServer(app);
 
-// ✅ POPRAWKA: CORS dla Socket.IO (Render.com HTTPS)
+// ✅ CORS – niezbędny na Render.com
 const io = new Server(server, {
   cors: {
-    origin: "https://chatmerge.onrender.com", // lub ["https://..."] jako tablica
+    origin: "https://chatmerge.onrender.com",
     methods: ["GET", "POST"],
     credentials: true
   }
 });
 
-// 🔁 WAKE endpoint dla Render
+// 🔁 WAKE endpoint dla Render.com
 app.get("/wake", (req, res) => {
   console.log("📡 Wake ping otrzymany");
   res.send("OK");
 });
 
-// ✅ Użycie portu przydzielonego przez Render
+// 🌐 Start serwera
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`✅ Serwer działa na porcie ${PORT} (Render.com live!)`);
 });
 
-// === ZMIENNE ===
+// === ZMIENNE GŁÓWNE ===
 const activeClients = new Set();
 const YT_CHANNEL_ID = "UCa3HO9MlbTpEUjLjyslBuHg";
 let twitchConnected = false;
 let youtubeActive = false;
 
-// === YOUTUBE INTEGRACJA ===
+// === INTEGRACJA YT ===
 ytChat.injectSetYouTubeActive((status) => {
   youtubeActive = status;
 });
 const { startYouTubeChat, stopYouTubeChat } = ytChat;
 
-// === SOCKET.IO HANDLERY ===
+// === SOCKET.IO – OBSŁUGA KLIENTÓW ===
 io.on("connection", (socket) => {
   console.log(`🟢 Klient połączony: ${socket.id}`);
   activeClients.add(socket.id);
@@ -64,6 +64,26 @@ io.on("connection", (socket) => {
     startYouTubeChat(io, YT_CHANNEL_ID);
   });
 
+  socket.on("yt-message-to-server", ({ author, message, timestamp }) => {
+    const msg = {
+      source: "YouTube",
+      text: `${author}: ${message}`,
+      timestamp
+    };
+    console.log("📺 YouTube:", msg.text);
+    io.emit("chatMessage", msg);
+  });
+
+  socket.on("twitch-message-to-server", ({ author, message, timestamp }) => {
+    const msg = {
+      source: "Twitch",
+      text: `${author}: ${message}`,
+      timestamp
+    };
+    console.log("🎮 Twitch:", msg.text);
+    io.emit("chatMessage", msg);
+  });
+
   socket.on("disconnect", () => {
     console.log(`🔴 Klient rozłączony: ${socket.id}`);
     activeClients.delete(socket.id);
@@ -76,7 +96,7 @@ io.on("connection", (socket) => {
   });
 });
 
-// 🔄 Ping co 30s do każdego klienta (do pomiaru opóźnień itp.)
+// 🔄 Wysyłanie pingów co 30 sekund do klientów
 setInterval(() => {
   activeClients.forEach(socketId => {
     const clientSocket = io.sockets.sockets.get(socketId);
@@ -86,7 +106,7 @@ setInterval(() => {
   });
 }, 30000);
 
-// === TWITCH CZAT ===
+// === TWITCH ===
 const twitchClient = new tmi.Client({
   options: { debug: true },
   connection: { reconnect: true, secure: true },
@@ -107,11 +127,10 @@ twitchClient.on("disconnected", () => {
 
 twitchClient.on("message", (channel, tags, message, self) => {
   if (self) return;
-  const msg = {
-    source: "Twitch",
-    text: `${tags["display-name"]}: ${message}`,
+
+  io.emit("twitch-message-to-server", {
+    author: tags["display-name"],
+    message,
     timestamp: Date.now()
-  };
-  console.log("🎮 Twitch:", msg.text);
-  io.emit("chatMessage", msg);
+  });
 });
