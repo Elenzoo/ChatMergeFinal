@@ -2,11 +2,12 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const tmi = require("tmi.js");
-const { startYouTubeChat, stopYouTubeChat } = require("./ytChatReader");
+const { startYouTubeChat } = require("./ytChatReader");
 
 const app = express();
 const server = http.createServer(app);
 
+// 🔒 CORS – pozwalamy tylko Twojej aplikacji frontendowej
 const io = new Server(server, {
   cors: {
     origin: "https://chatmerge.onrender.com",
@@ -14,6 +15,7 @@ const io = new Server(server, {
   }
 });
 
+// ✅ Socket.IO client (dla Electron) – nie stanowi zagrożenia
 app.use("/socket.io", express.static(__dirname + "/node_modules/socket.io/client-dist"));
 
 const PORT = process.env.PORT || 3000;
@@ -23,34 +25,39 @@ server.listen(PORT, () => {
 
 // === YOUTUBE CHAT ===
 let youtubeStarted = false;
-const CHANNEL_ID = "UC4GcVWu_yAseBVZqlygv6Cw"; // Kajma
 
 io.on("connection", (socket) => {
   console.log("✅ Nowe połączenie z frontendem");
 
-  socket.emit("server-status", "ready");
-
+  // ZAWSZE nasłuchuj na pingi
   socket.on("ping-server", () => {
+    console.log("📡 Otrzymano ping od klienta – odsyłam gotowość");
     socket.emit("server-status", "ready");
-  });
+  
 
-  // Start czatu YT (tylko raz przy pierwszym połączeniu)
+  // Jednorazowa informacja na start (opcjonalna)
+  socket.emit("server-status", "ready");
+});
+
+
+  // Start czatu YT (tylko raz)
   if (!youtubeStarted) {
     youtubeStarted = true;
     console.log("▶️ Uruchamiam czat YouTube...");
-    startYouTubeChat(io, CHANNEL_ID);
+    startYouTubeChat(io);
   }
 
   // Manualny reset czatu przez frontend
   socket.on("force-reset-chat", () => {
     console.log("🔁 Manualny reset czatu YouTube!");
-    stopYouTubeChat();
-    startYouTubeChat(io, CHANNEL_ID);
+    startYouTubeChat(io);
   });
 
   socket.on("disconnect", () => {
     console.log("🔌 Rozłączono frontend");
   });
+
+  // 🔐 NIE nasłuchujemy żadnych innych danych od klienta!
 });
 
 // === TWITCH CHAT ===
