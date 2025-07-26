@@ -17,19 +17,12 @@ let latestMessageTimestamp = 0;
 let chatActive = false;
 let ioRef = null;
 
-// 🔁 Zmienna na przekazany z zewnątrz callback
-let setStatusCallback = () => {};
-
-function injectSetYouTubeActive(fn) {
-  setStatusCallback = fn;
-}
-
-function setYouTubeActive(status) {
-  setStatusCallback(status);
-}
+// 🔁 Callback od serwera
+let setYouTubeActive = (v) => {};
 
 const tokensUsed = apiKeys.map(() => 0);
 
+// === RESET TOKENÓW O PÓŁNOCY ===
 function scheduleDailyReset() {
   const now = new Date();
   const nextMidnight = new Date();
@@ -44,6 +37,7 @@ function scheduleDailyReset() {
 }
 scheduleDailyReset();
 
+// === POBIERANIE ID TRANSMISJI LIVE ===
 async function getLiveVideoId(channelId) {
   for (let i = 0; i < apiKeys.length; i++) {
     const key = apiKeys[i];
@@ -65,6 +59,7 @@ async function getLiveVideoId(channelId) {
   return null;
 }
 
+// === SAFE AXIOS GET ===
 async function safeAxiosGet(url) {
   for (let i = 0; i < apiKeys.length; i++) {
     const realIndex = (currentKeyIndex + i) % apiKeys.length;
@@ -92,6 +87,7 @@ async function safeAxiosGet(url) {
   throw new Error("🚫 Wszystkie klucze zawiodły.");
 }
 
+// === START POLLERA CZATU ===
 function startPollingChat() {
   if (!chatId) {
     console.error("❌ Brak chatId. Nie można rozpocząć nasłuchu.");
@@ -140,6 +136,7 @@ function startPollingChat() {
   }, 3000);
 }
 
+// === STOP POLLERA ===
 function stopPollingChat() {
   if (!chatActive) {
     console.log("⏸️ Poller już był zatrzymany.");
@@ -158,6 +155,7 @@ function stopPollingChat() {
   setYouTubeActive(false);
 }
 
+// === START SYSTEMU CZATU YT ===
 async function startYouTubeChat(io, channelId) {
   ioRef = io;
 
@@ -176,12 +174,9 @@ async function startYouTubeChat(io, channelId) {
   }
 }
 
-function stopYouTubeChat() {
-  console.log("🛑 Zatrzymuję czat YouTube");
-  stopPollingChat();
-  chatId = null;
-  nextPageToken = null;
-  latestMessageTimestamp = 0;
+// === API DLA SERVERA ===
+function injectSetYouTubeActive(fn) {
+  setYouTubeActive = fn;
 }
 
 module.exports = {
