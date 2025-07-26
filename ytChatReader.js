@@ -92,15 +92,8 @@ async function safeAxiosGet(url) {
 
 // === START POLLERA CZATU ===
 function startPollingChat() {
-  if (!chatId) {
-    console.error("❌ Brak chatId. Nie można rozpocząć nasłuchu.");
-    return;
-  }
-
-  if (chatActive) {
-    console.log("⚠️ Poller już aktywny – pomijam start.");
-    return;
-  }
+  if (!chatId) return console.error("❌ Brak chatId. Nie można rozpocząć nasłuchu.");
+  if (chatActive) return console.log("⚠️ Poller już aktywny – pomijam start.");
 
   chatActive = true;
   isPolling = true;
@@ -123,11 +116,13 @@ function startPollingChat() {
         if (timestamp > latestMessageTimestamp) {
           latestMessageTimestamp = timestamp;
 
-          ioRef.emit("youtube-message", {
-            author,
-            message,
-            timestamp
-          });
+          if (ioRef) {
+            ioRef.emit("yt-message-to-server", {
+              author,
+              message,
+              timestamp
+            });
+          }
 
           console.log(`[YT] ${author}: ${message}`);
         }
@@ -147,20 +142,15 @@ function stopPollingChat() {
 
   isPolling = false;
   chatActive = false;
-
-  if (pollingInterval) {
-    clearInterval(pollingInterval);
-    pollingInterval = null;
-  }
-
+  if (pollingInterval) clearInterval(pollingInterval);
+  pollingInterval = null;
   console.log("⏹️ Zatrzymano polling czatu YouTube.");
   setYouTubeActive(false);
 }
 
-// === START SYSTEMU CZATU YT ===
+// === START CZATU ===
 async function startYouTubeChat(io, channelId) {
   ioRef = io;
-
   console.log("🚀 Rozpoczynam pobieranie czatu z kanału:", channelId);
   const videoId = await getLiveVideoId(channelId);
   if (!videoId) return console.error("❌ Nie znaleziono aktywnego videoId");
@@ -176,7 +166,7 @@ async function startYouTubeChat(io, channelId) {
   }
 }
 
-// === STOP SYSTEMU CZATU YT ===
+// === EXPORT ===
 function stopYouTubeChat() {
   console.log("🛑 Zatrzymuję czat YouTube");
   stopPollingChat();
