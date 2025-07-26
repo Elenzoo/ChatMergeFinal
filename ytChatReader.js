@@ -1,19 +1,19 @@
 const axios = require("axios");
 
 const apiKeys = [
-  "AIzaSyCOR5QRFiHR-hZln9Zb2pHfOnyCANK0Yaw",
-  "AIzaSyDZkmm3O6qea-3MKCV0Rd8ymIXlC7B_d5o",
-  "AIzaSyC6zEr4DnnljJkAEl5MzynFIdnEMtAdXY4",
-  "AIzaSyB4Gaa2UvOpwMI7qKJDwKADPuERZHSQ2VI",
-  "AIzaSyDNuapAUp4EMwkbzmsItShSm962Loe2KSk"
+  "KLUCZ_API_1",
+  "KLUCZ_API_2",
+  "KLUCZ_API_3"
 ];
 let currentKeyIndex = 0;
 
 let chatId = null;
 let nextPageToken = null;
 let isPolling = false;
-let intervalId = null;
+let pollingInterval = null;
 let latestMessageTimestamp = 0;
+let chatActive = false;
+let ioRef = null;
 
 const tokensUsed = apiKeys.map(() => 0);
 
@@ -83,16 +83,25 @@ async function safeAxiosGet(url) {
 }
 
 // === START POLLERA CZATU ===
-async function startPollingChat(io) {
+function startPollingChat() {
   if (!chatId) {
     console.error("❌ Brak chatId. Nie można rozpocząć nasłuchu.");
     return;
   }
 
+  if (chatActive) {
+    console.log("⚠️ Poller już aktywny – pomijam start.");
+    return;
+  }
+
+  chatActive = true;
   isPolling = true;
 
-  async function poll() {
+  console.log("▶️ Start czatu YouTube (polling)...");
+
+  pollingInterval = setInterval(async () => {
     if (!isPolling) return;
+
     const url = `https://www.googleapis.com/youtube/v3/liveChat/messages?liveChatId=${chatId}&part=snippet,authorDetails${nextPageToken ? `&pageToken=${nextPageToken}` : ""}`;
     try {
       const data = await safeAxiosGet(url);
@@ -106,7 +115,7 @@ async function startPollingChat(io) {
         if (timestamp > latestMessageTimestamp) {
           latestMessageTimestamp = timestamp;
 
-          io.emit("youtube-message", {
+          ioRef.emit("youtube-message", {
             author,
             message,
             timestamp
@@ -118,42 +127,55 @@ async function startPollingChat(io) {
     } catch (err) {
       console.error("🚨 Błąd podczas pobierania wiadomości czatu:", err.message);
     }
-  }
-
-  clearInterval(intervalId);
-  intervalId = setInterval(poll, 3000);
+  }, 3000);
 }
 
-// === START CZATU ===
-async function startYouTubeChat(io, channelId = "UC4GcVWu_yAseBVZqlygv6Cw") {
-  try {
-    console.log("🚀 Rozpoczynam pobieranie czatu z kanału:", channelId);
-    const videoId = await getLiveVideoId(channelId);
-    if (!videoId) return false;
+// === STOP POLLERA ===
+function stopPollingChat() {
+  if (!chatActive) {
+    console.log("⏸️ Poller już był zatrzymany.");
+    return;
+  }
 
-    const url = `https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=${videoId}`;
+  isPolling = false;
+  chatActive = false;
+
+  if (pollingInterval) {
+    clearInterval(pollingInterval);
+    pollingInterval = null;
+  }
+
+  console.log("⏹️ Zatrzymano polling czatu YouTube.");
+}
+
+// === START SYSTEMU CZATU YT ===
+async function startYouTubeChat(io, channelId) {
+  ioRef = io; // zapamiętujemy io dla pollera
+
+  console.log("🚀 Rozpoczynam pobieranie czatu z kanału:", channelId);
+  const videoId = await getLiveVideoId(channelId);
+  if (!videoId) return console.error("❌ Nie znaleziono aktywnego videoId");
+
+  const url = `https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=${videoId}`;
+  try {
     const data = await safeAxiosGet(url);
     chatId = data.items[0].liveStreamingDetails.activeLiveChatId;
     console.log(`💬 chatId ustawiony: ${chatId}`);
-    startPollingChat(io);
-    return true;
+    startPollingChat();
   } catch (err) {
     console.error("❌ Nie udało się pobrać chatId:", err.message);
-    return false;
   }
 }
 
-// === STOP CZATU ===
+// === STOP SYSTEMU CZATU YT ===
 function stopYouTubeChat() {
-  console.log("🛑 Zatrzymuję nasłuch YouTube Chat");
-  isPolling = false;
-  clearInterval(intervalId);
+  console.log("🛑 Zatrzymuję czat YouTube");
+  stopPollingChat();
   chatId = null;
   nextPageToken = null;
   latestMessageTimestamp = 0;
 }
 
-// === EXPORT ===
 module.exports = {
   startYouTubeChat,
   stopYouTubeChat
