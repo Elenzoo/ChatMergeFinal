@@ -18,9 +18,19 @@ server.listen(PORT, () => {
 // === YOUTUBE ===
 let youtubeStarted = false;
 
+// === SOCKET.IO – połączenie z frontendem ===
 io.on("connection", (socket) => {
-  console.log("🔌 Połączono z frontendem");
+  console.log("✅ Nowe połączenie z frontendem");
 
+  // natychmiastowy status
+  socket.emit("server-status", "ready");
+
+  // odpowiedź na pingi
+  socket.on("ping-server", () => {
+    socket.emit("server-status", "ready");
+  });
+
+  // tylko raz startuj YouTube czat
   if (!youtubeStarted) {
     youtubeStarted = true;
     console.log("▶️ Uruchamiam czat YouTube...");
@@ -46,9 +56,4 @@ twitchClient.on("message", (channel, tags, message, self) => {
   };
   console.log("🎮 Twitch:", msg.text);
   io.emit("chatMessage", msg);
-});
-
-io.on("connection", (socket) => {
-  console.log("✅ Nowe połączenie z frontendem");
-  socket.emit("server-status", "ready");
 });
