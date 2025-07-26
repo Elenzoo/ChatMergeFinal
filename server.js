@@ -33,12 +33,10 @@ io.on("connection", (socket) => {
   socket.on("ping-server", () => {
     console.log("📡 Otrzymano ping od klienta – odsyłam gotowość");
     socket.emit("server-status", "ready");
-  
+  });
 
   // Jednorazowa informacja na start (opcjonalna)
   socket.emit("server-status", "ready");
-});
-
 
   // Start czatu YT (tylko raz)
   if (!youtubeStarted) {
@@ -59,6 +57,7 @@ io.on("connection", (socket) => {
 
   // 🔐 NIE nasłuchujemy żadnych innych danych od klienta!
 });
+
 
 // === TWITCH CHAT ===
 const twitchClient = new tmi.Client({
