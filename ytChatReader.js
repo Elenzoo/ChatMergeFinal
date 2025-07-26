@@ -7,8 +7,8 @@ const apiKeys = [
   "AIzaSyB4Gaa2UvOpwMI7qKJDwKADPuERZHSQ2VI",
   "AIzaSyDNuapAUp4EMwkbzmsItShSm962Loe2KSk"
 ];
-let currentKeyIndex = 0;
 
+let currentKeyIndex = 0;
 let chatId = null;
 let nextPageToken = null;
 let isPolling = false;
@@ -152,7 +152,7 @@ function stopPollingChat() {
 
 // === START SYSTEMU CZATU YT ===
 async function startYouTubeChat(io, channelId) {
-  ioRef = io; // zapamiętujemy io dla pollera
+  ioRef = io;
 
   console.log("🚀 Rozpoczynam pobieranie czatu z kanału:", channelId);
   const videoId = await getLiveVideoId(channelId);
