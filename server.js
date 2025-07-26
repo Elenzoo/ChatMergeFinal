@@ -7,36 +7,40 @@ const ytChat = require("./ytChatReader");
 const app = express();
 const server = http.createServer(app);
 
+// ✅ POPRAWKA: CORS dla Socket.IO (Render.com HTTPS)
 const io = new Server(server, {
   cors: {
-    origin: "https://chatmerge.onrender.com",
-    methods: ["GET", "POST"]
+    origin: "https://chatmerge.onrender.com", // lub ["https://..."] jako tablica
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
-// === WAKE PING dla Render ===
+// 🔁 WAKE endpoint dla Render
 app.get("/wake", (req, res) => {
   console.log("📡 Wake ping otrzymany");
   res.send("OK");
 });
 
+// ✅ Użycie portu przydzielonego przez Render
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`✅ Serwer działa na http://localhost:${PORT}`);
+  console.log(`✅ Serwer działa na porcie ${PORT} (Render.com live!)`);
 });
 
+// === ZMIENNE ===
 const activeClients = new Set();
 const YT_CHANNEL_ID = "UCa3HO9MlbTpEUjLjyslBuHg";
-
 let twitchConnected = false;
 let youtubeActive = false;
 
+// === YOUTUBE INTEGRACJA ===
 ytChat.injectSetYouTubeActive((status) => {
   youtubeActive = status;
 });
-
 const { startYouTubeChat, stopYouTubeChat } = ytChat;
 
+// === SOCKET.IO HANDLERY ===
 io.on("connection", (socket) => {
   console.log(`🟢 Klient połączony: ${socket.id}`);
   activeClients.add(socket.id);
@@ -72,6 +76,7 @@ io.on("connection", (socket) => {
   });
 });
 
+// 🔄 Ping co 30s do każdego klienta (do pomiaru opóźnień itp.)
 setInterval(() => {
   activeClients.forEach(socketId => {
     const clientSocket = io.sockets.sockets.get(socketId);
@@ -81,7 +86,7 @@ setInterval(() => {
   });
 }, 30000);
 
-// === TWITCH CHAT ===
+// === TWITCH CZAT ===
 const twitchClient = new tmi.Client({
   options: { debug: true },
   connection: { reconnect: true, secure: true },
