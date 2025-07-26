@@ -14,27 +14,17 @@ const io = new Server(server, {
   }
 });
 
-app.use("/socket.io", express.static(__dirname + "/node_modules/socket.io/client-dist"));
-
 // === WAKE PING dla Render ===
 app.get("/wake", (req, res) => {
   console.log("📡 Wake ping otrzymany");
   res.send("OK");
 });
 
-// === HEARTBEAT LOG CO 30s ===
-setInterval(() => {
-  console.log("💓 Serwer działa – heartbeat");
-}, 30000);
-
-// === START SERVERA ===
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log("🚀 Serwer uruchomiony – nasłuch HTTP i Socket.IO");
   console.log(`✅ Serwer działa na http://localhost:${PORT}`);
 });
 
-// === SYSTEM KLIENTÓW ===
 const activeClients = new Set();
 const YT_CHANNEL_ID = "UCa3HO9MlbTpEUjLjyslBuHg";
 
@@ -82,7 +72,6 @@ io.on("connection", (socket) => {
   });
 });
 
-// === PINGI DLA FRONTU ===
 setInterval(() => {
   activeClients.forEach(socketId => {
     const clientSocket = io.sockets.sockets.get(socketId);
@@ -113,13 +102,11 @@ twitchClient.on("disconnected", () => {
 
 twitchClient.on("message", (channel, tags, message, self) => {
   if (self) return;
-
   const msg = {
     source: "Twitch",
     text: `${tags["display-name"]}: ${message}`,
     timestamp: Date.now()
   };
-
   console.log("🎮 Twitch:", msg.text);
   io.emit("chatMessage", msg);
 });
