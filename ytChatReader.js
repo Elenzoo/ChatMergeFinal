@@ -1,4 +1,3 @@
-// ytChatReader.js
 const axios = require("axios");
 
 const API_KEY = "AIzaSyDZkmm3O6qea-3MKCV0Rd8ymIXlC7B_d5o";
@@ -75,7 +74,12 @@ async function startYouTubeChat(io) {
       const res = await axios.get(url);
       nextPageToken = res.data.nextPageToken;
 
-      console.log(`📥 Odebrano ${res.data.items.length} wiadomości z czatu`);
+      if (!res.data.items || res.data.items.length === 0) {
+        console.log("📭 Brak nowych wiadomości z czatu.");
+        return;
+      }
+
+      console.log(`📥 Odebrano ${res.data.items.length} wiadomości`);
 
       res.data.items.forEach(msg => {
         const author = msg.authorDetails.displayName;
@@ -92,11 +96,22 @@ async function startYouTubeChat(io) {
             timestamp
           });
         } else {
-          console.log("↩️ Pominięto zduplikowaną/starą wiadomość:", text);
+          // Komentarz niepotrzebny w logu, bo będzie spamować
         }
       });
     } catch (err) {
-      console.error("❌ [YT API] Błąd:", err.response?.data?.error || err.message);
+      if (err.response) {
+        const status = err.response.status;
+        const reason = err.response.data?.error?.message || "Brak informacji";
+
+        if (status === 403) {
+          console.error("⛔️ Błąd 403: API limit? Brak uprawnień? Powód:", reason);
+        } else {
+          console.error(`❌ [YT API] Błąd ${status}:`, reason);
+        }
+      } else {
+        console.error("❌ Błąd połączenia z YouTube API:", err.message);
+      }
     }
   }, 3000);
 }
