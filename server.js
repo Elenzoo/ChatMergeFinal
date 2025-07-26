@@ -22,19 +22,25 @@ app.get("/wake", (req, res) => {
   res.send("OK");
 });
 
+// === HEARTBEAT LOG CO 30s ===
+setInterval(() => {
+  console.log("💓 Serwer działa – heartbeat");
+}, 30000);
 
+// === START SERVERA ===
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
+  console.log("🚀 Serwer uruchomiony – nasłuch HTTP i Socket.IO");
   console.log(`✅ Serwer działa na http://localhost:${PORT}`);
 });
 
+// === SYSTEM KLIENTÓW ===
 const activeClients = new Set();
 const YT_CHANNEL_ID = "UCa3HO9MlbTpEUjLjyslBuHg";
 
 let twitchConnected = false;
 let youtubeActive = false;
 
-// 💡 Przekazujemy callback do ytChat bez circular import
 ytChat.injectSetYouTubeActive((status) => {
   youtubeActive = status;
 });
@@ -76,6 +82,7 @@ io.on("connection", (socket) => {
   });
 });
 
+// === PINGI DLA FRONTU ===
 setInterval(() => {
   activeClients.forEach(socketId => {
     const clientSocket = io.sockets.sockets.get(socketId);
