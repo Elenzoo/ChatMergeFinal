@@ -25,7 +25,10 @@ server.listen(PORT, () => {
 
 // === SYSTEM AKTYWNYCH KLIENTÓW + YT CHAT ===
 const activeClients = new Set();
-const YT_CHANNEL_ID = "UCa3HO9MlbTpEUjLjyslBuHg"; // 👈 wpisz swój kanał YT (np. Kajmy)
+const YT_CHANNEL_ID = "UCa3HO9MlbTpEUjLjyslBuHg";
+
+let twitchConnected = false;
+let youtubeActive = false; // kontrolowane przez czat
 
 io.on("connection", (socket) => {
   console.log(`🟢 Klient połączony: ${socket.id}`);
@@ -40,7 +43,11 @@ io.on("connection", (socket) => {
   // Odpowiedź na ping
   socket.on("ping-server", () => {
     console.log("📡 Otrzymano ping od klienta");
-    socket.emit("server-status", "ready");
+    socket.emit("server-status", {
+      server: true,
+      twitch: twitchConnected,
+      youtube: youtubeActive
+    });
   });
 
   // Ręczny reset czatu z frontu
@@ -57,6 +64,7 @@ io.on("connection", (socket) => {
     if (activeClients.size === 0) {
       console.log("⛔ Brak klientów – zatrzymuję czat YouTube");
       stopYouTubeChat();
+      youtubeActive = false;
     }
   });
 });
@@ -66,7 +74,7 @@ setInterval(() => {
   activeClients.forEach(socketId => {
     const clientSocket = io.sockets.sockets.get(socketId);
     if (clientSocket) {
-      clientSocket.emit('pingCheck', { timestamp: Date.now() });
+      clientSocket.emit("pingCheck", { timestamp: Date.now() });
     }
   });
 }, 30000);
@@ -80,6 +88,16 @@ const twitchClient = new tmi.Client({
 
 twitchClient.connect();
 
+twitchClient.on("connected", () => {
+  twitchConnected = true;
+  console.log("🟣 Twitch czat połączony");
+});
+
+twitchClient.on("disconnected", () => {
+  twitchConnected = false;
+  console.log("⚫ Twitch czat rozłączony");
+});
+
 twitchClient.on("message", (channel, tags, message, self) => {
   if (self) return;
 
@@ -92,3 +110,9 @@ twitchClient.on("message", (channel, tags, message, self) => {
   console.log("🎮 Twitch:", msg.text);
   io.emit("chatMessage", msg);
 });
+
+// === Obsługa czatu YT – update statusu ===
+function setYouTubeActive(status) {
+  youtubeActive = status;
+}
+module.exports.setYouTubeActive = setYouTubeActive;
