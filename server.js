@@ -21,14 +21,13 @@ server.listen(PORT, () => {
   console.log(`✅ Serwer działa na http://localhost:${PORT}`);
 });
 
-// === SYSTEM AKTYWNYCH KLIENTÓW + YT CHAT ===
 const activeClients = new Set();
 const YT_CHANNEL_ID = "UCa3HO9MlbTpEUjLjyslBuHg";
 
 let twitchConnected = false;
 let youtubeActive = false;
 
-// 💡 przekazujemy callback do ytChat bez circular import
+// 💡 Przekazujemy callback do ytChat bez circular import
 ytChat.injectSetYouTubeActive((status) => {
   youtubeActive = status;
 });
