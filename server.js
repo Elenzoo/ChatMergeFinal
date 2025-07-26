@@ -25,7 +25,7 @@ server.listen(PORT, () => {
 
 // === SYSTEM AKTYWNYCH KLIENTÓW + YT CHAT ===
 const activeClients = new Set();
-const YT_CHANNEL_ID = "UCxxxxxxxx"; // 👈 wpisz swój kanał YT (np. Kajmy)
+const YT_CHANNEL_ID = "UCa3HO9MlbTpEUjLjyslBuHg"; // 👈 wpisz swój kanał YT (np. Kajmy)
 
 io.on("connection", (socket) => {
   console.log(`🟢 Klient połączony: ${socket.id}`);
