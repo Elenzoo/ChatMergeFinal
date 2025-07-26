@@ -1,9 +1,11 @@
 const axios = require("axios");
 
 const apiKeys = [
-  "KLUCZ_API_1",
-  "KLUCZ_API_2",
-  "KLUCZ_API_3"
+  "AIzaSyCOR5QRFiHR-hZln9Zb2pHfOnyCANK0Yaw",
+  "AIzaSyDZkmm3O6qea-3MKCV0Rd8ymIXlC7B_d5o",
+  "AIzaSyC6zEr4DnnljJkAEl5MzynFIdnEMtAdXY4",
+  "AIzaSyB4Gaa2UvOpwMI7qKJDwKADPuERZHSQ2VI",
+  "AIzaSyDNuapAUp4EMwkbzmsItShSm962Loe2KSk"
 ];
 let currentKeyIndex = 0;
 
