@@ -52,8 +52,10 @@ async function getLiveVideoId(channelId) {
       console.warn(`❌ Błąd przy pobieraniu videoId z kluczem ${i}: ${err.response?.status}`);
     }
   }
-  console.error("🚫 Nie znaleziono aktywnej transmisji.");
-  return null;
+  console.log("⏳ Brak aktywnej transmisji – oczekiwanie na start live...");
+return null;
+
+
 }
 
 // === SAFE AXIOS GET Z OBSŁUGĄ LIMITÓW I PRZEŁĄCZENIEM KLUCZY ===
