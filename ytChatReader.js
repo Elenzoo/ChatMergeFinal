@@ -1,5 +1,4 @@
 const axios = require("axios");
-const { Server } = require("socket.io");
 
 const apiKeys = [
   "AIzaSyCOR5QRFiHR-hZln9Zb2pHfOnyCANK0Yaw",
@@ -7,7 +6,7 @@ const apiKeys = [
   "AIzaSyC6zEr4DnnljJkAEl5MzynFIdnEMtAdXY4",
   "AIzaSyB4Gaa2UvOpwMI7qKJDwKADPuERZHSQ2VI",
   "AIzaSyDNuapAUp4EMwkbzmsItShSm962Loe2KSk"
-  ];
+];
 let currentKeyIndex = 0;
 
 let chatId = null;
@@ -85,7 +84,10 @@ async function safeAxiosGet(url) {
 
 // === START POLLERA CZATU ===
 async function startPollingChat(io) {
-  if (!chatId) return console.error("❌ Brak chatId. Nie można rozpocząć nasłuchu.");
+  if (!chatId) {
+    console.error("❌ Brak chatId. Nie można rozpocząć nasłuchu.");
+    return;
+  }
 
   isPolling = true;
 
@@ -111,8 +113,6 @@ async function startPollingChat(io) {
           });
 
           console.log(`[YT] ${author}: ${message}`);
-        } else {
-          // stara wiadomość – pomijamy
         }
       }
     } catch (err) {
@@ -124,20 +124,22 @@ async function startPollingChat(io) {
   intervalId = setInterval(poll, 3000);
 }
 
-// === START CAŁEGO SYSTEMU CZATU ===
-async function startYouTubeChat(io, channelId) {
-  console.log("🚀 Rozpoczynam pobieranie czatu z kanału:", channelId);
-  const videoId = await getLiveVideoId(channelId);
-  if (!videoId) return console.error("❌ Nie znaleziono aktywnego videoId");
-
-  const url = `https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=${videoId}`;
+// === START CZATU ===
+async function startYouTubeChat(io, channelId = "UC4GcVWu_yAseBVZqlygv6Cw") {
   try {
+    console.log("🚀 Rozpoczynam pobieranie czatu z kanału:", channelId);
+    const videoId = await getLiveVideoId(channelId);
+    if (!videoId) return false;
+
+    const url = `https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=${videoId}`;
     const data = await safeAxiosGet(url);
     chatId = data.items[0].liveStreamingDetails.activeLiveChatId;
     console.log(`💬 chatId ustawiony: ${chatId}`);
     startPollingChat(io);
+    return true;
   } catch (err) {
     console.error("❌ Nie udało się pobrać chatId:", err.message);
+    return false;
   }
 }
 
