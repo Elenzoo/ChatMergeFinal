@@ -1,8 +1,8 @@
-//const express = require("express");
+const express = require("express");
 const http = require("http");
-//const { Server } = require("socket.io");
-//const tmi = require("tmi.js");
-//const { startYouTubeChat } = require("./ytChatReader");
+const { Server } = require("socket.io");
+const tmi = require("tmi.js");
+const { startYouTubeChat } = require("./ytChatReader");
 
 const app = express();
 app.use("/socket.io", express.static(__dirname + "/node_modules/socket.io/client-dist"));
