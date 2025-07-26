@@ -1,4 +1,5 @@
 const axios = require("axios");
+const { setYouTubeActive } = require("./server"); // 🔥 nowość
 
 const apiKeys = [
   "AIzaSyCOR5QRFiHR-hZln9Zb2pHfOnyCANK0Yaw",
@@ -53,9 +54,7 @@ async function getLiveVideoId(channelId) {
     }
   }
   console.log("⏳ Brak aktywnej transmisji – oczekiwanie na start live...");
-return null;
-
-
+  return null;
 }
 
 // === SAFE AXIOS GET Z OBSŁUGĄ LIMITÓW I PRZEŁĄCZENIEM KLUCZY ===
@@ -102,6 +101,7 @@ function startPollingChat() {
   isPolling = true;
 
   console.log("▶️ Start czatu YouTube (polling)...");
+  setYouTubeActive(true); // 🔥 informujemy serwer że YouTube czat działa
 
   pollingInterval = setInterval(async () => {
     if (!isPolling) return;
@@ -150,6 +150,7 @@ function stopPollingChat() {
   }
 
   console.log("⏹️ Zatrzymano polling czatu YouTube.");
+  setYouTubeActive(false); // 🔥 informujemy serwer że czat YouTube nieaktywny
 }
 
 // === START SYSTEMU CZATU YT ===
