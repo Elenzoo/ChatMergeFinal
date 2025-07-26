@@ -7,6 +7,7 @@ const { startYouTubeChat, stopYouTubeChat } = require("./ytChatReader");
 const app = express();
 const server = http.createServer(app);
 
+// 🔒 CORS – pozwalamy tylko Twojej aplikacji frontendowej
 const io = new Server(server, {
   cors: {
     origin: "https://chatmerge.onrender.com",
@@ -14,6 +15,7 @@ const io = new Server(server, {
   }
 });
 
+// ✅ Socket.IO client (dla Electron) – nie stanowi zagrożenia
 app.use("/socket.io", express.static(__dirname + "/node_modules/socket.io/client-dist"));
 
 const PORT = process.env.PORT || 3000;
@@ -21,70 +23,53 @@ server.listen(PORT, () => {
   console.log(`✅ Serwer działa na http://localhost:${PORT}`);
 });
 
-// === STATUSY ===
-let youtubeStarted = false;
-let isYouTubeChatReady = false;
-let isTwitchConnected = false;
+// === SYSTEM AKTYWNYCH KLIENTÓW + YT CHAT ===
+const activeClients = new Set();
+const YT_CHANNEL_ID = "UCxxxxxxxx"; // 👈 wpisz swój kanał YT (np. Kajmy)
 
-function getChatStatus() {
-  return isYouTubeChatReady;
-}
-
-// === SOCKET.IO ===
 io.on("connection", (socket) => {
-  console.log("✅ Nowe połączenie z frontendem");
+  console.log(`🟢 Klient połączony: ${socket.id}`);
+  activeClients.add(socket.id);
 
-  // Ping z frontendu – odpowiadamy statusem
-  socket.on("ping-server", () => {
-    const status = {
-      server: true,
-      youtube: getChatStatus(),
-      twitch: isTwitchConnected
-    };
-    console.log("📡 Ping → status:", status);
-    socket.emit("server-status", status);
-  });
-
-  // Status powitalny przy połączeniu
-  socket.emit("server-status", {
-    server: true,
-    youtube: getChatStatus(),
-    twitch: isTwitchConnected
-  });
-
-  // Start czatu YT (raz)
-  if (!youtubeStarted) {
-    youtubeStarted = true;
-    console.log("▶️ Uruchamiam czat YouTube...");
-    startYouTubeChat(io)
-      .then((success) => {
-        isYouTubeChatReady = success;
-        console.log(success ? "✅ Czat YT działa!" : "❌ Czat YT nie działa.");
-      })
-      .catch((err) => {
-        isYouTubeChatReady = false;
-        console.error("❌ Błąd przy starcie czatu YT:", err.message);
-      });
+  // Pierwszy klient – start czatu
+  if (activeClients.size === 1) {
+    console.log("▶️ Pierwszy klient – startuję czat YouTube");
+    startYouTubeChat(io, YT_CHANNEL_ID);
   }
 
+  // Odpowiedź na ping
+  socket.on("ping-server", () => {
+    console.log("📡 Otrzymano ping od klienta");
+    socket.emit("server-status", "ready");
+  });
+
+  // Ręczny reset czatu z frontu
   socket.on("force-reset-chat", () => {
     console.log("🔁 Manualny reset czatu YouTube!");
-    stopYouTubeChat();
-    startYouTubeChat(io)
-      .then((success) => {
-        isYouTubeChatReady = success;
-        console.log(success ? "✅ Czat YT działa po resecie!" : "❌ Czat YT NIE działa po resecie.");
-      })
-      .catch((err) => {
-        isYouTubeChatReady = false;
-        console.error("❌ Błąd po resecie czatu YT:", err.message);
-      });
+    startYouTubeChat(io, YT_CHANNEL_ID);
   });
 
   socket.on("disconnect", () => {
-    console.log("🔌 Rozłączono frontend");
+    console.log(`🔴 Klient rozłączony: ${socket.id}`);
+    activeClients.delete(socket.id);
+
+    // Ostatni klient się rozłączył – stop czatu
+    if (activeClients.size === 0) {
+      console.log("⛔ Brak klientów – zatrzymuję czat YouTube");
+      stopYouTubeChat();
+    }
   });
 });
+
+// Co 30 sek. wysyłamy ping tylko do aktywnych klientów
+setInterval(() => {
+  activeClients.forEach(socketId => {
+    const clientSocket = io.sockets.sockets.get(socketId);
+    if (clientSocket) {
+      clientSocket.emit('pingCheck', { timestamp: Date.now() });
+    }
+  });
+}, 30000);
 
 // === TWITCH CHAT ===
 const twitchClient = new tmi.Client({
@@ -94,16 +79,6 @@ const twitchClient = new tmi.Client({
 });
 
 twitchClient.connect();
-
-twitchClient.on("connected", () => {
-  isTwitchConnected = true;
-  console.log("✅ Twitch połączony");
-});
-
-twitchClient.on("disconnected", () => {
-  isTwitchConnected = false;
-  console.log("🔌 Twitch rozłączony");
-});
 
 twitchClient.on("message", (channel, tags, message, self) => {
   if (self) return;
